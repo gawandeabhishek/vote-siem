@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs'
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function GET() {
   const supabase = await getSupabase()
@@ -27,12 +28,20 @@ export async function POST(req: Request) {
   // Check if user is admin
   const { data: userRole } = await supabase
     .from('user_roles')
-    .select('role')
+    .select('role, clerk_user_id')
     .eq('user_id', userId)
     .single()
 
-  if (!userRole || userRole.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!userRole) {
+    // If the user role does not exist, create it with a new UUID
+    const newUserId = uuidv4()
+    const { error } = await supabase
+      .from('user_roles')
+      .insert([{ user_id: newUserId, clerk_user_id: userId, role: 'admin' }])
+
+    if (error) {
+      return NextResponse.json({ error: 'Failed to create user role' }, { status: 500 })
+    }
   }
 
   const body = await req.json()

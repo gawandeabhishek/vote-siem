@@ -1,45 +1,61 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { getSupabase } from "@/lib/supabase"
+import LoadingState from "@/components/loading-state"
+import { useUser } from "@clerk/nextjs"
 
-// Dummy data - replace with backend data later
-const candidates = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    position: "Student Body President",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
-    department: "Computer Science",
-    year: "3rd Year",
-    manifesto: "Building a more inclusive and technologically advanced campus",
-    achievements: ["Dean's List 2023", "Tech Club President", "Hackathon Winner"]
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    position: "Vice President",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
-    department: "Business Administration",
-    year: "4th Year",
-    manifesto: "Promoting student entrepreneurship and leadership",
-    achievements: ["Business Society Head", "StartUp Competition Winner"]
-  },
-  {
-    id: 3,
-    name: "Emily Rodriguez",
-    position: "Cultural Secretary",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80",
-    department: "Fine Arts",
-    year: "2nd Year",
-    manifesto: "Enriching campus life through diverse cultural events",
-    achievements: ["Art Festival Organizer", "Theater Club Lead"]
+interface Candidate {
+  id: string
+  name: string
+  image: string
+  department: string
+  year: string
+  manifesto: string
+  achievements: string[]
+  position: {
+    title: string
   }
-]
+}
 
 export default function CandidatesPage() {
+  const { user } = useUser()
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const isAdmin = (user?.publicMetadata as { role?: string })?.role === "admin"
+  console.log("Admin check:", isAdmin)
+
+  useEffect(() => {
+    fetchCandidates()
+  }, [])
+
+  const fetchCandidates = async () => {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('candidates')
+        .select(`
+          *,
+          position:positions(title)
+        `)
+        .order('name')
+
+      if (error) throw error
+      setCandidates(data || [])
+    } catch (error) {
+      console.error('Error fetching candidates:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <LoadingState />
+
   return (
     <div className="container mx-auto py-10 px-2">
       <motion.div
@@ -82,7 +98,7 @@ export default function CandidatesPage() {
                     </Avatar>
                     <div>
                       <CardTitle>{candidate.name}</CardTitle>
-                      <CardDescription>{candidate.position}</CardDescription>
+                      <CardDescription>{candidate.position.title}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -103,7 +119,7 @@ export default function CandidatesPage() {
                     <div>
                       <p className="text-sm font-medium mb-2">Achievements</p>
                       <div className="flex flex-wrap gap-2">
-                        {candidate.achievements.map((achievement, i) => (
+                        {candidate.achievements?.map((achievement, i) => (
                           <Badge key={i} variant="secondary">
                             {achievement}
                           </Badge>

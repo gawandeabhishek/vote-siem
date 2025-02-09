@@ -37,7 +37,7 @@ const Navbar = () => {
     {
       href: "/admin",
       label: "Admin Dashboard",
-      active: pathname.startsWith("/admin"),
+      active: pathname ? pathname.startsWith("/admin") : false,
       admin: true
     }
   ]
