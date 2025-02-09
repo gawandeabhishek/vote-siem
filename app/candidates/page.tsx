@@ -41,7 +41,7 @@ const candidates = [
 
 export default function CandidatesPage() {
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 px-2">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
