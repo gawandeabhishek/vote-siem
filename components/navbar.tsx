@@ -10,13 +10,21 @@ import { useAuthRole } from "@/hooks/use-auth-role"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useRouter } from 'next/router'
 
 const Navbar = () => {
   const pathname = usePathname()
-  const { isSignedIn } = useUser()
+  const { isSignedIn, user } = useUser()
   const { isAdmin } = useAuthRole()
   const [isOpen, setIsOpen] = useState(false)
   
+  // Log the user object to check its structure
+  console.log("User object:", user);
+
+  // Check if the user has the admin role
+  const isAdminUser = (user?.publicMetadata as { role?: string })?.role === "admin";
+  console.log("Is Admin:", isAdminUser); // Log the admin status
+
   const routes = [
     {
       href: "/",
@@ -24,28 +32,21 @@ const Navbar = () => {
       active: pathname === "/"
     },
     {
-      href: "/candidates",
+      href: isAdminUser ? "/admin/candidates" : "/candidates",
       label: "View Candidates",
-      active: pathname === "/candidates"
+      active: pathname === (isAdminUser ? "/admin/candidates" : "/candidates")
     },
     {
       href: "/vote",
       label: "Cast Vote",
       active: pathname === "/vote",
       auth: true
-    },
-    {
-      href: "/admin",
-      label: "Admin Dashboard",
-      active: pathname ? pathname.startsWith("/admin") : false,
-      admin: true
     }
   ]
   
   const NavItems = () => (
     <>
       {routes.map((route) => {
-        if (route.admin && !isAdmin) return null
         if (route.auth && !isSignedIn) return null
         
         return (
@@ -57,9 +58,6 @@ const Navbar = () => {
           >
             <Link href={route.href}>
               {route.label}
-              {route.admin && (
-                <Shield className="h-4 w-4 ml-2" />
-              )}
             </Link>
           </Button>
         )

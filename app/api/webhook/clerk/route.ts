@@ -46,19 +46,15 @@ export async function POST(req: Request) {
   const eventType = evt.type;
 
   if (eventType === 'user.created') {
-    // Generate a new UUID for the user role
-    const newUserId = uuidv4();
-
-    // When a new user is created, add them to the user_roles table
     const { error } = await supabase
       .from('user_roles')
       .insert([
         {
-          user_id: newUserId,
+          user_id: evt.data.id,
           clerk_user_id: evt.data.id,
-          role: 'voter'
+          role: 'admin'
         }
-      ])
+      ]);
 
     if (error) {
       console.error('Error creating user role:', error)
