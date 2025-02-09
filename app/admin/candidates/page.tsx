@@ -64,29 +64,43 @@ export default function CandidatesManagement() {
     position_id: "",
     image: ""
   })
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCandidates()
+    fetchPositions()
   }, [])
 
   const fetchCandidates = async () => {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('candidates')
-        .select(`
-          *,
-          position:positions(title),
-          vote_count:votes(count)
-        `)
-        .order('name')
+    setLoading(true)
+    const supabase = await getSupabase()
+    const { data, error } = await supabase
+      .from('candidates')
+      .select(`
+        *,
+        position:positions(title)
+      `)
+      .order('name')
 
-      if (error) throw error
-      setCandidates(data || [])
-    } catch (error) {
+    if (error) {
+      console.error('Error fetching candidates:', error)
       toast.error("Failed to fetch candidates")
-    } finally {
-      setLoading(false)
+    } else {
+      setCandidates(data || [])
+    }
+    setLoading(false)
+  }
+
+  const fetchPositions = async () => {
+    const supabase = await getSupabase()
+    const { data, error } = await supabase.from('positions').select('*')
+
+    if (error) {
+      console.error("Error fetching positions:", error)
+      toast.error("Failed to fetch positions")
+    } else {
+      setPositions(data || [])
     }
   }
 
@@ -121,11 +135,7 @@ export default function CandidatesManagement() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: newCandidate.name,
-          position_id: newCandidate.position_id,
-          image: newCandidate.image || null
-        }),
+        body: JSON.stringify(newCandidate),
       });
 
       if (!response.ok) {
@@ -145,26 +155,22 @@ export default function CandidatesManagement() {
   };
 
   const handleDeleteCandidate = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this candidate?")) return
+    setIsModalOpen(false);
+    setLoading(true);
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from('candidates')
+      .delete()
+      .eq('id', id);
 
-    try {
-      setLoading(true)
-      const supabase = await getSupabase()
-      const { error } = await supabase
-        .from('candidates')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      toast.success("Candidate deleted successfully")
-      fetchCandidates()
-    } catch (error) {
-      toast.error("Failed to delete candidate")
-    } finally {
-      setLoading(false)
+    if (error) {
+      toast.error("Failed to delete candidate");
+    } else {
+      toast.success("Candidate deleted successfully");
+      fetchCandidates();
     }
-  }
+    setLoading(false);
+  };
 
   if (loading) {
     return (
@@ -175,7 +181,7 @@ export default function CandidatesManagement() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 px-2">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -274,7 +280,7 @@ export default function CandidatesManagement() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDeleteCandidate(candidate.id)}
+                        onClick={() => { setCandidateToDelete(candidate.id); setIsModalOpen(true); }}
                       >
                         Delete
                       </Button>
@@ -286,6 +292,19 @@ export default function CandidatesManagement() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded shadow-lg">
+            <h2 className="text-lg">Confirm Deletion</h2>
+            <p>Are you sure you want to delete this candidate?</p>
+            <div className="mt-4">
+              <button onClick={() => handleDeleteCandidate(candidateToDelete || "")} className="bg-red-500 text-white p-2 rounded mr-2">Yes, Delete</button>
+              <button onClick={() => setIsModalOpen(false)} className="bg-gray-300 p-2 rounded">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
