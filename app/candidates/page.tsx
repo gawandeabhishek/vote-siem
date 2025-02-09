@@ -66,8 +66,18 @@ export default function CandidatesPage() {
               <Card className="h-full">
                 <CardHeader>
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={candidate.image} />
+                    <Avatar className="h-16 w-16 relative">
+                      <AvatarImage 
+                        src={candidate.image} 
+                        alt={candidate.name}
+                        className="object-cover"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          position: 'absolute',
+                          inset: 0
+                        }}
+                      />
                       <AvatarFallback>{candidate.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <div>
