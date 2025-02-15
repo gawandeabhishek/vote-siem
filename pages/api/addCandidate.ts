@@ -24,6 +24,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const supabase = getSupabase()
 
+    // Check if the position_id exists
+    const { data: position, error: positionError } = await supabase
+      .from('positions')
+      .select('id')
+      .eq('id', position_id)
+      .single();
+
+    if (positionError || !position) {
+      const { error: createPositionError } = await supabase
+        .from('positions')
+        .insert([{ id: position_id, title: 'New Position Title' }]); // Set a default title or modify as needed
+
+      if (createPositionError) {
+        return res.status(400).json({ error: 'Failed to create position.' });
+      }
+    }
+
     const { data, error } = await supabase
       .from('candidates')
       .insert([{ name, position_id, image: image || null, user_id: userId }]) // Include user_id
@@ -33,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: error.message });
     }
 
-    return res.status(200).json({ data })
+    return res.status(200).json({ message: 'Candidate added successfully', data })
   } else {
     res.setHeader('Allow', ['POST'])
     return res.status(405).end(`Method ${req.method} Not Allowed`)
