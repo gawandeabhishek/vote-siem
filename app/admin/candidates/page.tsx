@@ -345,7 +345,7 @@ const AdminCandidatesPage = () => {
                     Add Candidate
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto">
+                <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto rounded-lg">
                   <DialogHeader>
                     <DialogTitle>Add New Candidate</DialogTitle>
                     <DialogDescription>
@@ -356,6 +356,7 @@ const AdminCandidatesPage = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Name</label>
                       <Input
+                        className="rounded-md"
                         placeholder="Enter candidate name"
                         value={newCandidate.name}
                         onChange={(e) => setNewCandidate(prev => ({
@@ -373,10 +374,10 @@ const AdminCandidatesPage = () => {
                           position_id: value
                         }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="rounded-md">
                           <SelectValue placeholder="Select position" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="h-48 overflow-y-auto rounded-md">
                           {STATIC_POSITIONS.map((position) => (
                             <SelectItem key={position.id} value={position.id}>
                               {position.title}
@@ -388,6 +389,7 @@ const AdminCandidatesPage = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Profile Image URL (Optional)</label>
                       <Input
+                        className="rounded-md"
                         placeholder="Enter image URL"
                         value={newCandidate.image}
                         onChange={(e) => setNewCandidate(prev => ({
@@ -405,10 +407,10 @@ const AdminCandidatesPage = () => {
                           year: value
                         }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="rounded-md">
                           <SelectValue placeholder="Select year" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="h-48 overflow-y-auto rounded-md">
                           <SelectItem value="1st">1st Year</SelectItem>
                           <SelectItem value="2nd">2nd Year</SelectItem>
                           <SelectItem value="3rd">3rd Year</SelectItem>
@@ -425,10 +427,10 @@ const AdminCandidatesPage = () => {
                           department: value
                         }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="rounded-md">
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="h-48 overflow-y-auto rounded-md">
                           <SelectItem value="Computer Science">Computer Science</SelectItem>
                           <SelectItem value="E & TC">E & TC</SelectItem>
                           <SelectItem value="Electrical">Electrical</SelectItem>
@@ -439,6 +441,7 @@ const AdminCandidatesPage = () => {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Manifesto</label>
                       <Input
+                        className="rounded-md"
                         placeholder="Enter manifesto"
                         value={newCandidate.manifesto}
                         onChange={(e) => setNewCandidate(prev => ({
@@ -452,6 +455,7 @@ const AdminCandidatesPage = () => {
                       {newCandidate.achievements.map((achievement, index) => (
                         <div key={index} className="flex items-center space-x-2">
                           <Input
+                            className="rounded-md"
                             placeholder={`Achievement ${index + 1}`}
                             value={achievement}
                             onChange={(e) => handleAchievementChange(index, e.target.value)}
@@ -623,7 +627,7 @@ const AdminCandidatesPage = () => {
           </AlertDialog>
 
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto">
+            <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Candidate</DialogTitle>
                 <DialogDescription>
@@ -652,7 +656,7 @@ const AdminCandidatesPage = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select Position" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="h-48 overflow-y-auto">
                     {STATIC_POSITIONS.map((position) => (
                       <SelectItem key={position.id} value={position.id}>
                         {position.title}
@@ -682,7 +686,7 @@ const AdminCandidatesPage = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select Year" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="h-48 overflow-y-auto">
                     <SelectItem value="1st">1st Year</SelectItem>
                     <SelectItem value="2nd">2nd Year</SelectItem>
                     <SelectItem value="3rd">3rd Year</SelectItem>
@@ -701,7 +705,7 @@ const AdminCandidatesPage = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="h-48 overflow-y-auto">
                     <SelectItem value="Computer Science">Computer Science</SelectItem>
                     <SelectItem value="E & TC">E & TC</SelectItem>
                     <SelectItem value="Electrical">Electrical</SelectItem>
