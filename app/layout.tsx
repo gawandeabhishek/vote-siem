@@ -5,6 +5,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { Providers } from '@/components/providers'
 import Navbar from '@/components/navbar'
 import { cn } from '@/lib/utils'
+import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,6 +27,7 @@ export default function RootLayout({
             <Navbar />
             {children}
           </Providers>
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

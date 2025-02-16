@@ -39,23 +39,35 @@ const VotePage = () => {
   }, [user])
 
   const fetchCandidates = async () => {
-    setLoading(true)
-    const supabase = await getSupabase()
-    const { data, error } = await supabase
-      .from("candidates")
-      .select(`
-        *,
-        position:positions(title)
-      `)
-      .order("name")
+    try {
+      setLoading(true)
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from("candidates")
+        .select(`
+          *,
+          position:positions(title),
+          votes(count)
+        `)
+        .order("name")
 
-    if (error) {
-      console.error("Error fetching candidates:", error)
+      if (error) {
+        console.error("Error fetching candidates:", error)
+        toast.error("Failed to fetch candidates")
+        return
+      }
+
+      const candidatesWithVotes = data.map(candidate => ({
+        ...candidate,
+        vote_count: candidate.votes?.length || 0
+      }))
+      setCandidates(candidatesWithVotes)
+    } catch (error) {
+      console.error("Error in fetchCandidates:", error)
       toast.error("Failed to fetch candidates")
-    } else {
-      setCandidates(data || [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleVote = async () => {
@@ -72,64 +84,60 @@ const VotePage = () => {
     try {
       const supabase = await getSupabase()
 
-      const { data: userMapping, error: mappingError } = await supabase
+      // Get the user's ID from the user mapping
+      const { data: userMappings, error: mappingError } = await supabase
         .from("user_mappings")
         .select("supabase_user_id")
         .eq("clerk_user_id", user.id)
-        .single()
 
-      if (mappingError || !userMapping) {
-        throw new Error("User mapping not found.")
+      if (mappingError) {
+        console.error("Mapping error:", mappingError)
+        toast.error("User mapping not found. Please ensure you are registered.")
+        return
       }
 
-      const supabaseUserId = userMapping.supabase_user_id
+      if (!userMappings || userMappings.length === 0) {
+        console.error("No user mapping found for Clerk User ID:", user.id)
+        toast.error("User mapping not found. Please ensure you are registered.")
+        return
+      }
 
-      const { data: existingVote, error: voteError } = await supabase
+      const supabaseUserId = userMappings[0].supabase_user_id
+
+      // Check if the user has already voted for this candidate
+      const { data: existingVotes, error: voteError } = await supabase
         .from("votes")
         .select("*")
-        .eq("user_id", supabaseUserId)
         .eq("candidate_id", selectedCandidateId)
-        .single()
+        .eq("voter_id", supabaseUserId) // Changed from user_id to voter_id
 
       if (voteError) {
+        console.error("Vote error:", voteError)
         throw new Error(voteError.message)
       }
 
-      if (existingVote) {
+      if (existingVotes && existingVotes.length > 0) {
         toast.error("You have already voted for this candidate.")
         return
       }
 
-      const { error } = await supabase
+      // Record the vote
+      const { error: insertError } = await supabase
         .from("votes")
-        .insert([{ candidate_id: selectedCandidateId, user_id: supabaseUserId }])
+        .insert([{ 
+          candidate_id: selectedCandidateId, 
+          voter_id: supabaseUserId  // Changed from user_id to voter_id
+        }])
 
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      const { data: candidateData, error: candidateError } = await supabase
-        .from("candidates")
-        .select("vote_count")
-        .eq("id", selectedCandidateId)
-        .single()
-
-      if (candidateError || !candidateData) {
-        throw new Error("Failed to fetch candidate data.")
-      }
-
-      const { error: incrementError } = await supabase
-        .from("candidates")
-        .update({ vote_count: candidateData.vote_count + 1 })
-        .eq("id", selectedCandidateId)
-
-      if (incrementError) {
-        throw new Error(incrementError.message)
+      if (insertError) {
+        console.error("Error recording vote:", insertError)
+        throw new Error(insertError.message)
       }
 
       toast.success("Vote cast successfully!")
       setVoteSubmitted(true)
-      setSelectedCandidateId(null)
+      setSelectedCandidateId(null) // Reset selection after voting
+      fetchCandidates() // Refresh candidates to update vote counts
     } catch (error: any) {
       console.error("Error casting vote:", error)
       toast.error("Failed to cast vote: " + error.message)
@@ -138,18 +146,18 @@ const VotePage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+      <main>
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <p className="text-muted-foreground">Loading candidates...</p>
         </div>
-      </div>
+      </main>
     )
   }
 
   return (
     <main>
-      <div className="relative min-h-screen py-20 sm:py-20">
+      <div className="relative min-h-screen py-40 sm:py-20">
         {/* Background Image with Gradient Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -218,7 +226,7 @@ const VotePage = () => {
                     >
                       <div className="relative mb-4 aspect-square rounded-lg overflow-hidden">
                         <Image
-                          src={candidate.image || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=400&auto=format&fit=crop"}
+                          src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"}
                           alt={candidate.name}
                           fill
                           className="object-cover transition-transform group-hover:scale-105"

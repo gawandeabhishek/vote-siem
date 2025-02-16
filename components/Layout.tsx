@@ -1,5 +1,5 @@
 import React from 'react';
-import Navbar from './navbar';
+import { Toaster } from "sonner"
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -9,6 +9,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </main>
       {/* Optional: Add a footer here if needed */}
+
+      <Toaster />
       <footer className="bg-gray-800 text-white text-center p-4">
         <p>&copy; {new Date().getFullYear()} Your Company Name. All rights reserved.</p>
       </footer>

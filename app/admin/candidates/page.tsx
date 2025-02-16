@@ -41,12 +41,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { getSupabase } from "@/lib/supabase"
-import { Loader2, Plus, Trash2, UserPlus2, Award, Users, Trophy } from "lucide-react"
+import { Loader2, Plus, Trash2, UserPlus2, Award, Users, Trophy, Edit } from "lucide-react"
 import { useUser } from '@clerk/nextjs'
 import Layout from "@/components/Layout"
 import { v4 as uuidv4 } from 'uuid'
 import Image from "next/image"
 import { PostgrestSingleResponse } from "@supabase/supabase-js"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 interface Position {
   id: string
@@ -65,7 +67,8 @@ interface Candidate {
   position: {
     title: string
   }
-  vote_count?: { count: number }[]
+  votes: { id: string }[]
+  vote_count: number
 }
 
 const STATIC_POSITIONS = [
@@ -84,11 +87,17 @@ const AdminCandidatesPage = () => {
   const [newCandidate, setNewCandidate] = useState({
     name: "",
     position_id: "",
-    image: ""
+    image: "",
+    year: "",
+    department: "",
+    manifesto: "",
+    achievements: [] as string[],
   })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [candidateToEdit, setCandidateToEdit] = useState<Candidate | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -106,7 +115,8 @@ const AdminCandidatesPage = () => {
       .from('candidates')
       .select(`
         *,
-        position:positions(title)
+        position:positions(title),
+        votes(id)
       `)
       .order('name')
 
@@ -114,7 +124,12 @@ const AdminCandidatesPage = () => {
       console.error('Error fetching candidates:', error)
       toast.error("Failed to fetch candidates")
     } else {
-      setCandidates(data || [])
+      // Calculate vote count for each candidate
+      const candidatesWithVotes = data?.map(candidate => ({
+        ...candidate,
+        vote_count: candidate.votes?.length || 0
+      })) || []
+      setCandidates(candidatesWithVotes)
     }
     setLoading(false)
   }
@@ -131,39 +146,70 @@ const AdminCandidatesPage = () => {
     }
   }
 
-  const isValidUUID = (uuid: string) => {
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return regex.test(uuid);
+  const handleAddAchievement = () => {
+    if (newCandidate.achievements.length < 5) {
+      setNewCandidate(prev => ({
+        ...prev,
+        achievements: [...prev.achievements, ""]
+      }));
+    }
+  };
+
+  const handleAchievementChange = (index: number, value: string) => {
+    const updatedAchievements = [...newCandidate.achievements];
+    updatedAchievements[index] = value;
+    setNewCandidate(prev => ({
+      ...prev,
+      achievements: updatedAchievements
+    }));
+  };
+
+  const handleRemoveAchievement = (index: number) => {
+    const updatedAchievements = newCandidate.achievements.filter((_, i) => i !== index);
+    setNewCandidate(prev => ({
+      ...prev,
+      achievements: updatedAchievements
+    }));
   };
 
   const handleAddCandidate = async () => {
     const supabase = await getSupabase();
 
-    // Check if user is defined
     if (!user) {
       toast.error("User is not authenticated.");
-      return; // Exit if the user is not authenticated
+      return;
     }
 
-    // Log the position ID being used for debugging
-    console.log("Position ID being used:", newCandidate.position_id);
-
-    // Validate position_id against STATIC_POSITIONS
     const positionExists = STATIC_POSITIONS.some(position => position.id === newCandidate.position_id);
 
     if (!positionExists) {
       toast.error("Position ID does not exist.");
-      return; // Exit if the position ID is invalid
+      return;
     }
 
-    // Proceed to insert the candidate
+    const validYears = ["1st", "2nd", "3rd", "4th"];
+    if (!validYears.includes(newCandidate.year)) {
+      toast.error("Please select a valid year (1st, 2nd, 3rd, or 4th).");
+      return;
+    }
+
+    const validDepartments = ["Computer Science", "E & TC", "Electrical", "Civil"];
+    if (!validDepartments.includes(newCandidate.department)) {
+      toast.error("Please select a valid department.");
+      return;
+    }
+
     const { data, error } = await supabase
       .from('candidates')
       .insert([{ 
         name: newCandidate.name, 
         position_id: newCandidate.position_id, 
         image: newCandidate.image || null, 
-        user_id: user.id 
+        user_id: user.id,
+        year: newCandidate.year,
+        department: newCandidate.department,
+        manifesto: newCandidate.manifesto,
+        achievements: newCandidate.achievements.filter(achievement => achievement.trim() !== "")
       }])
       .select()
       .single();
@@ -178,17 +224,19 @@ const AdminCandidatesPage = () => {
         name: data.name,
         position_id: newCandidate.position_id,
         image: data.image || null,
-        department: "", // Set appropriate values for these fields
-        year: "",
-        manifesto: "",
-        achievements: [],
+        department: newCandidate.department,
+        year: newCandidate.year,
+        manifesto: newCandidate.manifesto,
+        achievements: newCandidate.achievements.filter(achievement => achievement.trim() !== ""),
         position: {
-          title: STATIC_POSITIONS.find(pos => pos.id === newCandidate.position_id)?.title || "", // Get title from STATIC_POSITIONS
+          title: STATIC_POSITIONS.find(pos => pos.id === newCandidate.position_id)?.title || "",
         },
-        vote_count: [], // Initialize vote_count if it's part of the Candidate interface
+        votes: [],
+        vote_count: 0
       };
       setCandidates([...candidates, newCandidateData]);
-      setNewCandidate({ name: "", position_id: "", image: "" });
+      setNewCandidate({ name: "", position_id: "", image: "", year: "", department: "", manifesto: "", achievements: [] });
+      setAddDialogOpen(false);
     }
   };
 
@@ -214,6 +262,40 @@ const AdminCandidatesPage = () => {
     setLoading(false)
   }
 
+  const handleEditCandidate = (candidate: Candidate) => {
+    setCandidateToEdit(candidate);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateCandidate = async () => {
+    if (!candidateToEdit) return;
+
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from('candidates')
+      .update({
+        name: candidateToEdit.name,
+        position_id: candidateToEdit.position_id,
+        image: candidateToEdit.image,
+        year: candidateToEdit.year,
+        department: candidateToEdit.department,
+        manifesto: candidateToEdit.manifesto,
+        achievements: candidateToEdit.achievements,
+      })
+      .eq('id', candidateToEdit.id);
+
+    if (error) {
+      console.error("Failed to update candidate:", error);
+      toast.error("Failed to update candidate: " + error.message);
+    } else {
+      toast.success("Candidate updated successfully!");
+      // Update the local state to reflect the changes
+      setCandidates(prev => prev.map(c => (c.id === candidateToEdit.id ? candidateToEdit : c)));
+      setEditDialogOpen(false);
+      setCandidateToEdit(null);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -230,7 +312,6 @@ const AdminCandidatesPage = () => {
   return (
     <main>
       <div className="relative min-h-screen py-20 sm:pt-20">
-        {/* Background Image with Gradient Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1606761568499-6d2451b23c66?q=80&w=1920&auto=format&fit=crop"
@@ -315,6 +396,78 @@ const AdminCandidatesPage = () => {
                         }))}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Year</label>
+                      <Select
+                        value={newCandidate.year}
+                        onValueChange={(value) => setNewCandidate(prev => ({
+                          ...prev,
+                          year: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1st">1st Year</SelectItem>
+                          <SelectItem value="2nd">2nd Year</SelectItem>
+                          <SelectItem value="3rd">3rd Year</SelectItem>
+                          <SelectItem value="4th">4th Year</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Department</label>
+                      <Select
+                        value={newCandidate.department}
+                        onValueChange={(value) => setNewCandidate(prev => ({
+                          ...prev,
+                          department: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Computer Science">Computer Science</SelectItem>
+                          <SelectItem value="E & TC">E & TC</SelectItem>
+                          <SelectItem value="Electrical">Electrical</SelectItem>
+                          <SelectItem value="Civil">Civil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Manifesto</label>
+                      <Input
+                        placeholder="Enter manifesto"
+                        value={newCandidate.manifesto}
+                        onChange={(e) => setNewCandidate(prev => ({
+                          ...prev,
+                          manifesto: e.target.value
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Achievements</label>
+                      {newCandidate.achievements.map((achievement, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Input
+                            placeholder={`Achievement ${index + 1}`}
+                            value={achievement}
+                            onChange={(e) => handleAchievementChange(index, e.target.value)}
+                          />
+                          <Button variant="destructive" onClick={() => handleRemoveAchievement(index)}>Remove</Button>
+                        </div>
+                      ))}
+                      <div className="mt-2">
+                        <Button 
+                          onClick={handleAddAchievement} 
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Add Achievement
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <DialogFooter className="flex-col sm:flex-row gap-2">
                     <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="w-full sm:w-auto">
@@ -322,7 +475,7 @@ const AdminCandidatesPage = () => {
                     </Button>
                     <Button 
                       onClick={handleAddCandidate}
-                      disabled={!newCandidate.name || !newCandidate.position_id}
+                      disabled={!newCandidate.name || !newCandidate.position_id || !newCandidate.year || !newCandidate.department}
                       className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90"
                     >
                       Add Candidate
@@ -360,15 +513,20 @@ const AdminCandidatesPage = () => {
                             className="group hover:bg-primary/5"
                           >
                             <TableCell>
-                              <div className="relative h-10 w-10 sm:h-12 sm:w-12">
-                                <Image
-                                  src={candidate.image || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop"}
+                              <Avatar className="h-16 w-16 relative">
+                                <AvatarImage 
+                                  src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
                                   alt={candidate.name}
-                                  className="rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all"
-                                  width={48}
-                                  height={48}
+                                  className="object-cover"
+                                  style={{ 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    position: 'absolute',
+                                    inset: 0
+                                  }}
                                 />
-                              </div>
+                                <AvatarFallback>{candidate.name.split(' ').map(n => n[0].toUpperCase()).join('')}</AvatarFallback>
+                              </Avatar>
                             </TableCell>
                             <TableCell>
                               <div className="font-medium">{candidate.name}</div>
@@ -379,7 +537,7 @@ const AdminCandidatesPage = () => {
                             <TableCell className="hidden sm:table-cell">{candidate.position.title}</TableCell>
                             <TableCell className="text-center">
                               <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
-                                {candidate.vote_count?.[0]?.count ?? 0}
+                                {candidate.vote_count}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
@@ -394,6 +552,14 @@ const AdminCandidatesPage = () => {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
+                                onClick={() => handleEditCandidate(candidate)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </motion.tr>
                         ))}
@@ -407,6 +573,9 @@ const AdminCandidatesPage = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {positions.map((position, index) => {
                 const Icon = STATIC_POSITIONS[index].icon
+                const positionCandidates = candidates.filter(c => c.position.title === position.title)
+                const totalVotes = positionCandidates.reduce((sum, c) => sum + c.vote_count, 0)
+                
                 return (
                   <motion.div
                     key={position.id}
@@ -418,9 +587,14 @@ const AdminCandidatesPage = () => {
                     <div className="h-full p-4 sm:p-6 rounded-lg border bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all hover:scale-105">
                       <Icon className="h-6 w-6 sm:h-8 sm:w-8 mb-2 sm:mb-3 text-primary group-hover:text-blue-600 transition-colors" />
                       <h3 className="font-semibold text-sm sm:text-lg">{position.title}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        {candidates.filter(c => c.position.title === position.title).length} candidates
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          {positionCandidates.length} candidate{positionCandidates.length !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 )
@@ -447,6 +621,111 @@ const AdminCandidatesPage = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Candidate</DialogTitle>
+                <DialogDescription>
+                  Update the details of the candidate below.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <Input
+                  placeholder="Name"
+                  value={candidateToEdit?.name || ""}
+                  onChange={(e) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, name: e.target.value }));
+                    }
+                  }}
+                />
+                
+                <Select
+                  value={candidateToEdit?.position_id || ""}
+                  onValueChange={(value) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, position_id: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATIC_POSITIONS.map((position) => (
+                      <SelectItem key={position.id} value={position.id}>
+                        {position.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  placeholder="Image URL"
+                  value={candidateToEdit?.image || ""}
+                  onChange={(e) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, image: e.target.value }));
+                    }
+                  }}
+                />
+
+                <Select
+                  value={candidateToEdit?.year || ""}
+                  onValueChange={(value) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, year: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1st">1st Year</SelectItem>
+                    <SelectItem value="2nd">2nd Year</SelectItem>
+                    <SelectItem value="3rd">3rd Year</SelectItem>
+                    <SelectItem value="4th">4th Year</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={candidateToEdit?.department || ""}
+                  onValueChange={(value) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, department: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Computer Science">Computer Science</SelectItem>
+                    <SelectItem value="E & TC">E & TC</SelectItem>
+                    <SelectItem value="Electrical">Electrical</SelectItem>
+                    <SelectItem value="Civil">Civil</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  placeholder="Manifesto"
+                  value={candidateToEdit?.manifesto || ""}
+                  onChange={(e) => {
+                    if (candidateToEdit) {
+                      setCandidateToEdit(prev => ({ ...prev!, manifesto: e.target.value }));
+                    }
+                  }}
+                />
+
+                <Button onClick={handleUpdateCandidate}>Update Candidate</Button>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </main>
