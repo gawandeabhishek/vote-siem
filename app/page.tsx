@@ -30,7 +30,7 @@ export default function Home() {
           className="text-center space-y-8 max-w-4xl"
         >
           <h1 className="text-5xl font-bold tracking-tight sm:text-7xl text-white">
-            College Elections <span className="text-primary-foreground">2024</span>
+            College Elections <span className="text-primary-foreground">2025</span>
           </h1>
           <p className="text-xl text-gray-200 sm:text-2xl max-w-2xl mx-auto">
             Shape the future of our college. Every vote counts in building the leadership that represents your voice.
