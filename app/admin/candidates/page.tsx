@@ -46,6 +46,7 @@ import { useUser } from '@clerk/nextjs'
 import Layout from "@/components/Layout"
 import { v4 as uuidv4 } from 'uuid'
 import Image from "next/image"
+import { PostgrestSingleResponse } from "@supabase/supabase-js"
 
 interface Position {
   id: string
@@ -56,26 +57,30 @@ interface Candidate {
   id: string
   name: string
   position_id: string
-  image?: string
+  image: string | null
+  department: string
+  year: string
+  manifesto: string
+  achievements: string[]
   position: {
     title: string
   }
-  vote_count: { count: number }[]
+  vote_count?: { count: number }[]
 }
 
 const STATIC_POSITIONS = [
-  { id: uuidv4(), title: "President", icon: Trophy },
-  { id: uuidv4(), title: "Vice President", icon: Users },
-  { id: uuidv4(), title: "Secretary", icon: Award },
-  { id: uuidv4(), title: "Treasurer", icon: Award },
-  { id: uuidv4(), title: "Cultural Secretary", icon: Award }
+  { id: "e4194474-3fd3-42af-b642-9e6aa0740627", title: "President", icon: Trophy },
+  { id: "c84c84ae-177e-4509-a654-1d78e643c9fd", title: "Vice President", icon: Users },
+  { id: "a1234567-3fd3-42af-b642-9e6aa0740627", title: "Secretary", icon: Award },
+  { id: "b1234567-3fd3-42af-b642-9e6aa0740627", title: "Treasurer", icon: Award },
+  { id: "d1234567-3fd3-42af-b642-9e6aa0740627", title: "Cultural Secretary", icon: Award }
 ]
 
 const AdminCandidatesPage = () => {
   const { user } = useUser()
   const [loading, setLoading] = useState(true)
   const [candidates, setCandidates] = useState<Candidate[]>([])
-  const [positions] = useState<Position[]>(STATIC_POSITIONS)
+  const [positions, setPositions] = useState<Position[]>(STATIC_POSITIONS)
   const [newCandidate, setNewCandidate] = useState({
     name: "",
     position_id: "",
@@ -91,6 +96,7 @@ const AdminCandidatesPage = () => {
       return
     }
     fetchCandidates()
+    fetchPositions()
   }, [user])
 
   const fetchCandidates = async () => {
@@ -100,8 +106,7 @@ const AdminCandidatesPage = () => {
       .from('candidates')
       .select(`
         *,
-        position:positions(title),
-        vote_count:votes(count)
+        position:positions(title)
       `)
       .order('name')
 
@@ -114,37 +119,78 @@ const AdminCandidatesPage = () => {
     setLoading(false)
   }
 
-  const handleAddCandidate = async () => {
-    if (!newCandidate.name || !newCandidate.position_id) {
-      toast.error("Please fill in all required fields")
-      return
+  const fetchPositions = async () => {
+    const supabase = await getSupabase()
+    const { data, error } = await supabase.from('positions').select('*')
+
+    if (error) {
+      console.error("Error fetching positions:", error)
+      toast.error("Failed to fetch positions")
+    } else {
+      setPositions(data || [])
     }
-
-    setLoading(true)
-    try {
-      const supabase = await getSupabase()
-      const { error } = await supabase
-        .from('candidates')
-        .insert([
-          {
-            name: newCandidate.name,
-            position_id: newCandidate.position_id,
-            image: newCandidate.image || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop"
-          }
-        ])
-
-      if (error) throw error
-
-      toast.success("Candidate added successfully")
-      setNewCandidate({ name: "", position_id: "", image: "" })
-      setAddDialogOpen(false)
-      fetchCandidates()
-    } catch (error: any) {
-      console.error("Error adding candidate:", error)
-      toast.error("Failed to add candidate: " + error.message)
-    }
-    setLoading(false)
   }
+
+  const isValidUUID = (uuid: string) => {
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(uuid);
+  };
+
+  const handleAddCandidate = async () => {
+    const supabase = await getSupabase();
+
+    // Check if user is defined
+    if (!user) {
+      toast.error("User is not authenticated.");
+      return; // Exit if the user is not authenticated
+    }
+
+    // Log the position ID being used for debugging
+    console.log("Position ID being used:", newCandidate.position_id);
+
+    // Validate position_id against STATIC_POSITIONS
+    const positionExists = STATIC_POSITIONS.some(position => position.id === newCandidate.position_id);
+
+    if (!positionExists) {
+      toast.error("Position ID does not exist.");
+      return; // Exit if the position ID is invalid
+    }
+
+    // Proceed to insert the candidate
+    const { data, error } = await supabase
+      .from('candidates')
+      .insert([{ 
+        name: newCandidate.name, 
+        position_id: newCandidate.position_id, 
+        image: newCandidate.image || null, 
+        user_id: user.id 
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to add candidate:", error);
+      toast.error("Failed to add candidate: " + error.message);
+    } else {
+      toast.success("Candidate added successfully!");
+      const newCandidateData: Candidate = {
+        id: data.id,
+        name: data.name,
+        position_id: newCandidate.position_id,
+        image: data.image || null,
+        department: "", // Set appropriate values for these fields
+        year: "",
+        manifesto: "",
+        achievements: [],
+        position: {
+          title: STATIC_POSITIONS.find(pos => pos.id === newCandidate.position_id)?.title || "", // Get title from STATIC_POSITIONS
+        },
+        vote_count: [], // Initialize vote_count if it's part of the Candidate interface
+      };
+      setCandidates([...candidates, newCandidateData]);
+      setNewCandidate({ name: "", position_id: "", image: "" });
+    }
+  };
 
   const handleDeleteCandidate = async (id: string) => {
     setLoading(true)
@@ -250,7 +296,7 @@ const AdminCandidatesPage = () => {
                           <SelectValue placeholder="Select position" />
                         </SelectTrigger>
                         <SelectContent>
-                          {positions.map((position) => (
+                          {STATIC_POSITIONS.map((position) => (
                             <SelectItem key={position.id} value={position.id}>
                               {position.title}
                             </SelectItem>
@@ -315,7 +361,7 @@ const AdminCandidatesPage = () => {
                           >
                             <TableCell>
                               <div className="relative h-10 w-10 sm:h-12 sm:w-12">
-                                <img
+                                <Image
                                   src={candidate.image || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop"}
                                   alt={candidate.name}
                                   className="rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all"

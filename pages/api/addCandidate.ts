@@ -3,8 +3,8 @@ import { getSupabase } from '@/lib/supabase'
 import { getAuth } from '@clerk/nextjs/server'
 
 const isValidUUID = (uuid: string) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return regex.test(uuid);
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -32,13 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (positionError || !position) {
-      const { error: createPositionError } = await supabase
-        .from('positions')
-        .insert([{ id: position_id, title: 'New Position Title' }]); // Set a default title or modify as needed
-
-      if (createPositionError) {
-        return res.status(400).json({ error: 'Failed to create position.' });
-      }
+      return res.status(400).json({ error: 'Position ID does not exist.' });
     }
 
     const { data, error } = await supabase
