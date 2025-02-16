@@ -25,6 +25,49 @@ interface Candidate {
   vote_count: number
 }
 
+const getSupabaseUserId = async (clerkUserId: string): Promise<string | null> => {
+  const supabase = await getSupabase()
+  const { data, error } = await supabase
+    .from('user_mappings')
+    .select('supabase_user_id')
+    .eq('clerk_user_id', clerkUserId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching user mapping:', error)
+    return null
+  }
+
+  return data?.supabase_user_id || null
+}
+
+const createUserMapping = async (clerkUserId: string): Promise<boolean> => {
+  try {
+    const supabase = await getSupabase()
+    
+    // Create a new Supabase user ID
+    const supabaseUserId = crypto.randomUUID()
+    
+    // Create the mapping
+    const { error } = await supabase
+      .from('user_mappings')
+      .upsert({
+        clerk_user_id: clerkUserId,
+        supabase_user_id: supabaseUserId
+      })
+
+    if (error) {
+      console.error('Error creating user mapping:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error in createUserMapping:', error)
+    return false
+  }
+}
+
 const VotePage = () => {
   const { user } = useUser()
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -37,7 +80,26 @@ const VotePage = () => {
       toast.error("You must be logged in to vote.")
       return
     }
-    fetchCandidates()
+
+    const initializeUser = async () => {
+      // Try to get existing user mapping
+      let supabaseUserId = await getSupabaseUserId(user.id)
+
+      // If no mapping exists, create one
+      if (!supabaseUserId) {
+        const mappingCreated = await createUserMapping(user.id)
+        if (!mappingCreated) {
+          toast.error("Failed to initialize user. Please try again.")
+          return
+        }
+        // Get the newly created mapping
+        supabaseUserId = await getSupabaseUserId(user.id)
+      }
+
+      fetchCandidates()
+    }
+
+    initializeUser()
   }, [user])
 
   const fetchCandidates = async () => {
@@ -84,27 +146,16 @@ const VotePage = () => {
     }
 
     try {
+      const supabaseUserId = await getSupabaseUserId(user.id)
+      
+      if (!supabaseUserId) {
+        toast.error("User initialization required. Please refresh the page.")
+        return
+      }
+
       const supabase = await getSupabase()
 
-      const { data: userMappings, error: mappingError } = await supabase
-        .from("user_mappings")
-        .select("supabase_user_id")
-        .eq("clerk_user_id", user.id)
-
-      if (mappingError) {
-        console.error("Mapping error:", mappingError)
-        toast.error("User mapping not found. Please ensure you are registered.")
-        return
-      }
-
-      if (!userMappings || userMappings.length === 0) {
-        console.error("No user mapping found for Clerk User ID:", user.id)
-        toast.error("User mapping not found. Please ensure you are registered.")
-        return
-      }
-
-      const supabaseUserId = userMappings[0].supabase_user_id
-
+      // Check for existing votes
       const { data: existingVotes, error: voteError } = await supabase
         .from("votes")
         .select("*")
@@ -112,7 +163,6 @@ const VotePage = () => {
         .eq("voter_id", supabaseUserId)
 
       if (voteError) {
-        console.error("Vote error:", voteError)
         throw new Error(voteError.message)
       }
 
@@ -121,6 +171,7 @@ const VotePage = () => {
         return
       }
 
+      // Record the vote
       const { error: insertError } = await supabase
         .from("votes")
         .insert([{ 
@@ -129,7 +180,6 @@ const VotePage = () => {
         }])
 
       if (insertError) {
-        console.error("Error recording vote:", insertError)
         throw new Error(insertError.message)
       }
 
