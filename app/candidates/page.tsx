@@ -116,7 +116,7 @@ export default function CandidatesPage() {
                           <HoverCardTrigger>
                             <Avatar className="h-20 w-20 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all duration-300 hover:ring-primary/40">
                               <AvatarImage 
-                                src={candidate.image || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop"} 
+                                src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
                                 alt={candidate.name}
                                 className="object-cover"
                               />
@@ -151,7 +151,7 @@ export default function CandidatesPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">Year {candidate.year}</p>
+                          <p className="text-sm text-muted-foreground">{candidate.year} Year</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium mb-3">Key Achievements</p>

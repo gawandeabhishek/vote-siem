@@ -299,7 +299,7 @@ const VotePage = () => {
                           <div className="p-6 space-y-4">
                             <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden ring-4 ring-primary/10 ring-offset-2 ring-offset-background transition-all duration-300 group-hover:ring-primary/30">
                               <Image
-                                src={candidate.image || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop"}
+                                src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"}
                                 alt={candidate.name}
                                 fill
                                 className="object-cover transition-transform duration-300 group-hover:scale-110"
