@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { toast } from "react-toastify"
 import { getSupabase } from "@/lib/supabase"
 import { useUser } from "@clerk/nextjs"
-import { Loader2, Vote, Check, ChevronRight } from "lucide-react"
+import { Loader2, Vote, Check, ChevronRight, Trophy, Users, Star } from "lucide-react"
 import Image from "next/image"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Badge } from "@/components/ui/badge"
 
 interface Position {
   id: string
@@ -84,7 +86,6 @@ const VotePage = () => {
     try {
       const supabase = await getSupabase()
 
-      // Get the user's ID from the user mapping
       const { data: userMappings, error: mappingError } = await supabase
         .from("user_mappings")
         .select("supabase_user_id")
@@ -104,12 +105,11 @@ const VotePage = () => {
 
       const supabaseUserId = userMappings[0].supabase_user_id
 
-      // Check if the user has already voted for this candidate
       const { data: existingVotes, error: voteError } = await supabase
         .from("votes")
         .select("*")
         .eq("candidate_id", selectedCandidateId)
-        .eq("voter_id", supabaseUserId) // Changed from user_id to voter_id
+        .eq("voter_id", supabaseUserId)
 
       if (voteError) {
         console.error("Vote error:", voteError)
@@ -121,12 +121,11 @@ const VotePage = () => {
         return
       }
 
-      // Record the vote
       const { error: insertError } = await supabase
         .from("votes")
         .insert([{ 
           candidate_id: selectedCandidateId, 
-          voter_id: supabaseUserId  // Changed from user_id to voter_id
+          voter_id: supabaseUserId
         }])
 
       if (insertError) {
@@ -136,8 +135,8 @@ const VotePage = () => {
 
       toast.success("Vote cast successfully!")
       setVoteSubmitted(true)
-      setSelectedCandidateId(null) // Reset selection after voting
-      fetchCandidates() // Refresh candidates to update vote counts
+      setSelectedCandidateId(null)
+      fetchCandidates()
     } catch (error: any) {
       console.error("Error casting vote:", error)
       toast.error("Failed to cast vote: " + error.message)
@@ -146,68 +145,89 @@ const VotePage = () => {
 
   if (loading) {
     return (
-      <main>
-        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading candidates...</p>
+      <main className="min-h-screen bg-gradient-to-b from-background via-background/80 to-background">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        <div className="flex flex-col items-center justify-center min-h-screen relative">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-4 text-center"
+          >
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <p className="text-lg text-muted-foreground animate-pulse">Loading candidates...</p>
+          </motion.div>
         </div>
       </main>
     )
   }
 
   return (
-    <main>
-      <div className="relative min-h-screen py-40 sm:py-20">
-        {/* Background Image with Gradient Overlay */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=1920&auto=format&fit=crop"
-            alt="Background"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/80 to-background/95 backdrop-blur-sm" />
-        </div>
-
-        <div className="relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-b from-background via-background/80 to-background overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      
+      <div className="relative min-h-screen py-20">
+        <div className="container px-4 mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
+            className="space-y-12"
           >
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-6">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
+                className="space-y-4"
               >
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                <div className="inline-flex items-center justify-center p-2 rounded-full bg-primary/5 text-primary mb-4">
+                  <Trophy className="h-6 w-6" />
+                </div>
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-600 to-primary">
                   Cast Your Vote
                 </h1>
-                <p className="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl mx-auto">
-                  Select your preferred candidate from the list below. Your vote matters in shaping our future.
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Shape the future by selecting your preferred candidate. Every vote counts in building our community.
                 </p>
               </motion.div>
 
-              <div className="w-full max-w-xs mx-auto">
-                <div className="h-1 w-full bg-gradient-to-r from-primary/20 via-blue-600/20 to-primary/20 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="h-full bg-gradient-to-r from-primary via-blue-600 to-primary"
-                  />
+              <div className="flex items-center justify-center gap-8 text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <span>{candidates.length} Candidates</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5" />
+                  <span>Make Your Choice</span>
                 </div>
               </div>
+
+              <motion.div 
+                className="w-full max-w-md mx-auto h-1 bg-gradient-to-r from-primary/20 via-blue-600/20 to-primary/20 rounded-full overflow-hidden"
+                initial={{ opacity: 0, scaleX: 0 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <motion.div
+                  className="h-full w-full bg-gradient-to-r from-primary via-blue-600 to-primary"
+                  animate={{
+                    x: ["0%", "100%"],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  style={{ width: "30%" }}
+                />
+              </motion.div>
             </div>
 
             <AnimatePresence mode="wait">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
               >
                 {candidates.map((candidate, index) => (
                   <motion.div
@@ -215,73 +235,110 @@ const VotePage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="group relative"
+                    className="group"
                   >
-                    <div
-                      className={`h-full p-4 rounded-xl border bg-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all ${
-                        selectedCandidateId === candidate.id
-                          ? "ring-2 ring-primary border-primary"
-                          : "hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="relative mb-4 aspect-square rounded-lg overflow-hidden">
-                        <Image
-                          src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"}
-                          alt={candidate.name}
-                          fill
-                          className="object-cover transition-transform group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                      </div>
-
-                      <div className="space-y-2 text-center">
-                        <h3 className="font-semibold text-lg sm:text-xl">{candidate.name}</h3>
-                        <p className="text-sm text-muted-foreground">{candidate.position?.title}</p>
-                        
-                        <Button
-                          className={`w-full transition-all ${
+                    <HoverCard openDelay={200} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div
+                          className={`relative h-full rounded-xl border bg-card/50 backdrop-blur-sm shadow-lg transition-all duration-300 ${
                             selectedCandidateId === candidate.id
-                              ? "bg-primary hover:bg-primary/90"
-                              : "bg-primary/10 hover:bg-primary/20 text-primary"
+                              ? "ring-2 ring-primary border-primary shadow-primary/20"
+                              : "hover:border-primary/50 hover:shadow-xl"
                           }`}
-                          onClick={() => setSelectedCandidateId(candidate.id)}
-                          disabled={voteSubmitted}
                         >
-                          {selectedCandidateId === candidate.id ? (
-                            <Check className="mr-2 h-4 w-4" />
-                          ) : (
-                            <Vote className="mr-2 h-4 w-4" />
-                          )}
-                          {selectedCandidateId === candidate.id ? "Selected" : "Select"}
-                        </Button>
-                      </div>
-                    </div>
+                          <div className="p-6 space-y-4">
+                            <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden ring-4 ring-primary/10 ring-offset-2 ring-offset-background transition-all duration-300 group-hover:ring-primary/30">
+                              <Image
+                                src={candidate.image || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop"}
+                                alt={candidate.name}
+                                fill
+                                className="object-cover transition-transform duration-300 group-hover:scale-110"
+                              />
+                            </div>
+
+                            <div className="space-y-2 text-center">
+                              <h3 className="text-xl font-semibold">{candidate.name}</h3>
+                              <Badge variant="secondary" className="bg-primary/5">
+                                {candidate.position?.title}
+                              </Badge>
+                              
+                              <Button
+                                className={`w-full mt-4 transition-all duration-300 ${
+                                  selectedCandidateId === candidate.id
+                                    ? "bg-primary hover:bg-primary/90"
+                                    : "bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary/90"
+                                }`}
+                                onClick={() => setSelectedCandidateId(candidate.id)}
+                                disabled={voteSubmitted}
+                              >
+                                {selectedCandidateId === candidate.id ? (
+                                  <>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Selected
+                                  </>
+                                ) : (
+                                  <>
+                                    <Vote className="mr-2 h-4 w-4" />
+                                    Select Candidate
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent 
+                        side="right" 
+                        align="start"
+                        className="w-80 p-4"
+                      >
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold">{candidate.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Running for {candidate.position?.title}
+                          </p>
+                          <div className="pt-2 border-t">
+                            <p className="text-sm text-muted-foreground">
+                              Click to select this candidate
+                            </p>
+                          </div>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
                   </motion.div>
                 ))}
               </motion.div>
             </AnimatePresence>
 
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
               className="max-w-md mx-auto"
             >
               <Button
-                className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90 transition-all"
+                className="w-full h-14 text-lg font-medium bg-gradient-to-r from-primary via-blue-600 to-primary hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!selectedCandidateId || voteSubmitted}
                 onClick={handleVote}
               >
                 {voteSubmitted ? (
-                  <>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="flex items-center"
+                  >
                     <Check className="mr-2 h-5 w-5" />
-                    Vote Submitted
-                  </>
+                    Vote Submitted Successfully
+                  </motion.div>
                 ) : (
-                  <>
-                    Submit Vote
+                  <motion.div
+                    className="flex items-center"
+                    whileHover={{ x: 5 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    Submit Your Vote
                     <ChevronRight className="ml-2 h-5 w-5" />
-                  </>
+                  </motion.div>
                 )}
               </Button>
             </motion.div>
