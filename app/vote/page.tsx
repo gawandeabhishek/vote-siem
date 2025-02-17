@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { toast } from "react-toastify"
 import { getSupabase } from "@/lib/supabase"
 import { useUser } from "@clerk/nextjs"
 import { Loader2, Vote, Check, ChevronRight, Trophy, Users, Star } from "lucide-react"
 import Image from "next/image"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 
 interface Position {
   id: string
