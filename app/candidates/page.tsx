@@ -35,11 +35,8 @@ const STATIC_POSITIONS = [
 ]
 
 export default function CandidatesPage() {
-  const { user } = useUser()
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
-
-  const isAdmin = (user?.publicMetadata as { role?: string })?.role === "admin"
 
   useEffect(() => {
     fetchCandidates()

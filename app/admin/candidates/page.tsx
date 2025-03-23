@@ -49,6 +49,7 @@ import Image from "next/image"
 import { PostgrestSingleResponse } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import AdminProtected from "@/components/AdminProtected"
 
 interface Position {
   id: string
@@ -335,430 +336,432 @@ const AdminCandidatesPage = () => {
   }
 
   return (
-    <main>
-      <div className="relative min-h-screen py-20 sm:pt-20">
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="https://images.unsplash.com/photo-1606761568499-6d2451b23c66?q=80&w=1920&auto=format&fit=crop"
-            alt="Background"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/80 to-background/95 backdrop-blur-sm" />
-        </div>
+    <AdminProtected>
+      <main>
+        <div className="relative min-h-screen py-20 sm:pt-20">
+          <div className="absolute inset-0 z-0">
+            <Image
+              src="https://images.unsplash.com/photo-1606761568499-6d2451b23c66?q=80&w=1920&auto=format&fit=crop"
+              alt="Background"
+              fill
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/80 to-background/95 backdrop-blur-sm" />
+          </div>
 
-        <div className="relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/50 backdrop-blur-sm p-4 sm:p-6 rounded-lg border shadow-lg">
-              <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                  Manage Candidates
-                </h1>
-                <p className="text-sm sm:text-base text-muted-foreground mt-2">
-                  Add, remove, and manage election candidates
-                </p>
-              </div>
-              <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90">
-                    <UserPlus2 className="mr-2 h-5 w-5" />
-                    Add Candidate
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto rounded-lg">
-                  <DialogHeader>
-                    <DialogTitle>Add New Candidate</DialogTitle>
-                    <DialogDescription>
-                      Enter the details of the new candidate below.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Name</label>
-                      <Input
-                        className="rounded-md"
-                        placeholder="Enter candidate name"
-                        value={newCandidate.name}
-                        onChange={(e) => setNewCandidate(prev => ({
-                          ...prev,
-                          name: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Position</label>
-                      <Select
-                        value={newCandidate.position_id}
-                        onValueChange={(value) => setNewCandidate(prev => ({
-                          ...prev,
-                          position_id: value
-                        }))}
-                      >
-                        <SelectTrigger className="rounded-md">
-                          <SelectValue placeholder="Select position" />
-                        </SelectTrigger>
-                        <SelectContent className="h-48 overflow-y-auto rounded-md">
-                          {STATIC_POSITIONS.map((position) => (
-                            <SelectItem key={position.id} value={position.id}>
-                              {position.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Profile Image URL (Optional)</label>
-                      <Input
-                        className="rounded-md"
-                        placeholder="Enter image URL"
-                        value={newCandidate.image}
-                        onChange={(e) => setNewCandidate(prev => ({
-                          ...prev,
-                          image: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Year</label>
-                      <Select
-                        value={newCandidate.year}
-                        onValueChange={(value) => setNewCandidate(prev => ({
-                          ...prev,
-                          year: value
-                        }))}
-                      >
-                        <SelectTrigger className="rounded-md">
-                          <SelectValue placeholder="Select year" />
-                        </SelectTrigger>
-                        <SelectContent className="h-48 overflow-y-auto rounded-md">
-                          <SelectItem value="1st">1st Year</SelectItem>
-                          <SelectItem value="2nd">2nd Year</SelectItem>
-                          <SelectItem value="3rd">3rd Year</SelectItem>
-                          <SelectItem value="4th">4th Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Department</label>
-                      <Select
-                        value={newCandidate.department}
-                        onValueChange={(value) => setNewCandidate(prev => ({
-                          ...prev,
-                          department: value
-                        }))}
-                      >
-                        <SelectTrigger className="rounded-md">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent className="h-48 overflow-y-auto rounded-md">
-                          <SelectItem value="Computer Science">Computer Science</SelectItem>
-                          <SelectItem value="E & TC">E & TC</SelectItem>
-                          <SelectItem value="Electrical">Electrical</SelectItem>
-                          <SelectItem value="Civil">Civil</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Manifesto</label>
-                      <Input
-                        className="rounded-md"
-                        placeholder="Enter manifesto"
-                        value={newCandidate.manifesto}
-                        onChange={(e) => setNewCandidate(prev => ({
-                          ...prev,
-                          manifesto: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Achievements</label>
-                      {newCandidate.achievements.map((achievement, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <Input
-                            className="rounded-md"
-                            placeholder={`Achievement ${index + 1}`}
-                            value={achievement}
-                            onChange={(e) => handleAchievementChange(index, e.target.value)}
-                          />
-                          <Button variant="destructive" onClick={() => handleRemoveAchievement(index)}>Remove</Button>
-                        </div>
-                      ))}
-                      <div className="mt-2">
-                        <Button 
-                          onClick={handleAddAchievement} 
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Add Achievement
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="flex-col sm:flex-row gap-2">
-                    <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="w-full sm:w-auto">
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleAddCandidate}
-                      disabled={!newCandidate.name || !newCandidate.position_id || !newCandidate.year || !newCandidate.department}
-                      className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90"
-                    >
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/50 backdrop-blur-sm p-4 sm:p-6 rounded-lg border shadow-lg">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                    Manage Candidates
+                  </h1>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-2">
+                    Add, remove, and manage election candidates
+                  </p>
+                </div>
+                <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90">
+                      <UserPlus2 className="mr-2 h-5 w-5" />
                       Add Candidate
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <Card className="bg-card/50 backdrop-blur-sm shadow-lg border">
-              <CardHeader>
-                <CardTitle className="text-xl sm:text-2xl">Current Candidates</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 sm:px-6">
-                <div className="rounded-lg border bg-card/50 backdrop-blur-sm overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-primary/5 hover:bg-primary/5">
-                        <TableHead className="w-[80px]">Profile</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="hidden sm:table-cell">Position</TableHead>
-                        <TableHead className="text-center">Votes</TableHead>
-                        <TableHead className="text-right w-[60px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <AnimatePresence>
-                        {candidates.map((candidate, index) => (
-                          <motion.tr
-                            key={candidate.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.2, delay: index * 0.1 }}
-                            className="group hover:bg-primary/5"
-                          >
-                            <TableCell>
-                              <Avatar className="h-16 w-16 relative">
-                                <AvatarImage 
-                                  src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
-                                  alt={candidate.name}
-                                  className="object-cover"
-                                  style={{ 
-                                    width: '100%', 
-                                    height: '100%', 
-                                    position: 'absolute',
-                                    inset: 0
-                                  }}
-                                />
-                                <AvatarFallback>{candidate.name.split(' ').map(n => n[0].toUpperCase()).join('')}</AvatarFallback>
-                              </Avatar>
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{candidate.name}</div>
-                              <div className="text-sm text-muted-foreground sm:hidden">
-                                {candidate.position?.title || 'Unassigned'}
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell">
-                              {candidate.position?.title || 'Unassigned'}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
-                                {candidate.vote_count}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => {
-                                  setCandidateToDelete(candidate.id)
-                                  setDeleteDialogOpen(true)
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
-                                onClick={() => handleEditCandidate(candidate)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </motion.tr>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto rounded-lg">
+                    <DialogHeader>
+                      <DialogTitle>Add New Candidate</DialogTitle>
+                      <DialogDescription>
+                        Enter the details of the new candidate below.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Name</label>
+                        <Input
+                          className="rounded-md"
+                          placeholder="Enter candidate name"
+                          value={newCandidate.name}
+                          onChange={(e) => setNewCandidate(prev => ({
+                            ...prev,
+                            name: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Position</label>
+                        <Select
+                          value={newCandidate.position_id}
+                          onValueChange={(value) => setNewCandidate(prev => ({
+                            ...prev,
+                            position_id: value
+                          }))}
+                        >
+                          <SelectTrigger className="rounded-md">
+                            <SelectValue placeholder="Select position" />
+                          </SelectTrigger>
+                          <SelectContent className="h-48 overflow-y-auto rounded-md">
+                            {STATIC_POSITIONS.map((position) => (
+                              <SelectItem key={position.id} value={position.id}>
+                                {position.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Profile Image URL (Optional)</label>
+                        <Input
+                          className="rounded-md"
+                          placeholder="Enter image URL"
+                          value={newCandidate.image}
+                          onChange={(e) => setNewCandidate(prev => ({
+                            ...prev,
+                            image: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Year</label>
+                        <Select
+                          value={newCandidate.year}
+                          onValueChange={(value) => setNewCandidate(prev => ({
+                            ...prev,
+                            year: value
+                          }))}
+                        >
+                          <SelectTrigger className="rounded-md">
+                            <SelectValue placeholder="Select year" />
+                          </SelectTrigger>
+                          <SelectContent className="h-48 overflow-y-auto rounded-md">
+                            <SelectItem value="1st">1st Year</SelectItem>
+                            <SelectItem value="2nd">2nd Year</SelectItem>
+                            <SelectItem value="3rd">3rd Year</SelectItem>
+                            <SelectItem value="4th">4th Year</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Department</label>
+                        <Select
+                          value={newCandidate.department}
+                          onValueChange={(value) => setNewCandidate(prev => ({
+                            ...prev,
+                            department: value
+                          }))}
+                        >
+                          <SelectTrigger className="rounded-md">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent className="h-48 overflow-y-auto rounded-md">
+                            <SelectItem value="Computer Science">Computer Science</SelectItem>
+                            <SelectItem value="E & TC">E & TC</SelectItem>
+                            <SelectItem value="Electrical">Electrical</SelectItem>
+                            <SelectItem value="Civil">Civil</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Manifesto</label>
+                        <Input
+                          className="rounded-md"
+                          placeholder="Enter manifesto"
+                          value={newCandidate.manifesto}
+                          onChange={(e) => setNewCandidate(prev => ({
+                            ...prev,
+                            manifesto: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Achievements</label>
+                        {newCandidate.achievements.map((achievement, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <Input
+                              className="rounded-md"
+                              placeholder={`Achievement ${index + 1}`}
+                              value={achievement}
+                              onChange={(e) => handleAchievementChange(index, e.target.value)}
+                            />
+                            <Button variant="destructive" onClick={() => handleRemoveAchievement(index)}>Remove</Button>
+                          </div>
                         ))}
-                      </AnimatePresence>
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {positions.map((position, index) => {
-                const Icon = STATIC_POSITIONS[index].icon
-                const positionCandidates = candidates.filter(c => c.position?.title === position.title)
-                const totalVotes = positionCandidates.reduce((sum, c) => sum + c.vote_count, 0)
-                
-                return (
-                  <motion.div
-                    key={position.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group"
-                  >
-                    <div className="h-full p-4 sm:p-6 rounded-lg border bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                      <Icon className="h-6 w-6 sm:h-8 sm:w-8 mb-2 sm:mb-3 text-primary group-hover:text-blue-600 transition-colors" />
-                      <h3 className="font-semibold text-sm sm:text-lg">{position.title}</h3>
-                      <CardDescription className="flex items-center gap-2 mt-1">
-                        <Award className="h-4 w-4" />
-                        {positionCandidates.length} candidate{positionCandidates.length !== 1 ? 's' : ''}
-                      </CardDescription>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
-                      </p>
+                        <div className="mt-2">
+                          <Button 
+                            onClick={handleAddAchievement} 
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Add Achievement
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-          </motion.div>
-
-          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <AlertDialogContent className="w-[95vw] sm:w-full max-w-[425px] mx-auto">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Candidate</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this candidate? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => candidateToDelete && handleDeleteCandidate(candidateToDelete)}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit Candidate</DialogTitle>
-                <DialogDescription>
-                  Update the details of the candidate below.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <Input
-                  placeholder="Name"
-                  value={candidateToEdit?.name || ""}
-                  onChange={(e) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, name: e.target.value }));
-                    }
-                  }}
-                />
-                
-                <Select
-                  value={candidateToEdit?.position_id || ""}
-                  onValueChange={(value) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, position_id: value }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Position" />
-                  </SelectTrigger>
-                  <SelectContent className="h-48 overflow-y-auto">
-                    {STATIC_POSITIONS.map((position) => (
-                      <SelectItem key={position.id} value={position.id}>
-                        {position.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  placeholder="Image URL"
-                  value={candidateToEdit?.image || ""}
-                  onChange={(e) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, image: e.target.value }));
-                    }
-                  }}
-                />
-
-                <Select
-                  value={candidateToEdit?.year || ""}
-                  onValueChange={(value) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, year: value }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Year" />
-                  </SelectTrigger>
-                  <SelectContent className="h-48 overflow-y-auto">
-                    <SelectItem value="1st">1st Year</SelectItem>
-                    <SelectItem value="2nd">2nd Year</SelectItem>
-                    <SelectItem value="3rd">3rd Year</SelectItem>
-                    <SelectItem value="4th">4th Year</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={candidateToEdit?.department || ""}
-                  onValueChange={(value) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, department: value }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Department" />
-                  </SelectTrigger>
-                  <SelectContent className="h-48 overflow-y-auto">
-                    <SelectItem value="Computer Science">Computer Science</SelectItem>
-                    <SelectItem value="E & TC">E & TC</SelectItem>
-                    <SelectItem value="Electrical">Electrical</SelectItem>
-                    <SelectItem value="Civil">Civil</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  placeholder="Manifesto"
-                  value={candidateToEdit?.manifesto || ""}
-                  onChange={(e) => {
-                    if (candidateToEdit) {
-                      setCandidateToEdit(prev => ({ ...prev!, manifesto: e.target.value }));
-                    }
-                  }}
-                />
-
-                <Button onClick={handleUpdateCandidate}>Update Candidate</Button>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                      <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="w-full sm:w-auto">
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleAddCandidate}
+                        disabled={!newCandidate.name || !newCandidate.position_id || !newCandidate.year || !newCandidate.department}
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90"
+                      >
+                        Add Candidate
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+
+              <Card className="bg-card/50 backdrop-blur-sm shadow-lg border">
+                <CardHeader>
+                  <CardTitle className="text-xl sm:text-2xl">Current Candidates</CardTitle>
+                </CardHeader>
+                <CardContent className="px-0 sm:px-6">
+                  <div className="rounded-lg border bg-card/50 backdrop-blur-sm overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-primary/5 hover:bg-primary/5">
+                          <TableHead className="w-[80px]">Profile</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead className="hidden sm:table-cell">Position</TableHead>
+                          <TableHead className="text-center">Votes</TableHead>
+                          <TableHead className="text-right w-[60px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <AnimatePresence>
+                          {candidates.map((candidate, index) => (
+                            <motion.tr
+                              key={candidate.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -20 }}
+                              transition={{ duration: 0.2, delay: index * 0.1 }}
+                              className="group hover:bg-primary/5"
+                            >
+                              <TableCell>
+                                <Avatar className="h-16 w-16 relative">
+                                  <AvatarImage 
+                                    src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
+                                    alt={candidate.name}
+                                    className="object-cover"
+                                    style={{ 
+                                      width: '100%', 
+                                      height: '100%', 
+                                      position: 'absolute',
+                                      inset: 0
+                                    }}
+                                  />
+                                  <AvatarFallback>{candidate.name.split(' ').map(n => n[0].toUpperCase()).join('')}</AvatarFallback>
+                                </Avatar>
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">{candidate.name}</div>
+                                <div className="text-sm text-muted-foreground sm:hidden">
+                                  {candidate.position?.title || 'Unassigned'}
+                                </div>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell">
+                                {candidate.position?.title || 'Unassigned'}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
+                                  {candidate.vote_count}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => {
+                                    setCandidateToDelete(candidate.id)
+                                    setDeleteDialogOpen(true)
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
+                                  onClick={() => handleEditCandidate(candidate)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </motion.tr>
+                          ))}
+                        </AnimatePresence>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                {positions.map((position, index) => {
+                  const Icon = STATIC_POSITIONS[index].icon
+                  const positionCandidates = candidates.filter(c => c.position?.title === position.title)
+                  const totalVotes = positionCandidates.reduce((sum, c) => sum + c.vote_count, 0)
+                  
+                  return (
+                    <motion.div
+                      key={position.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="group"
+                    >
+                      <div className="h-full p-4 sm:p-6 rounded-lg border bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                        <Icon className="h-6 w-6 sm:h-8 sm:w-8 mb-2 sm:mb-3 text-primary group-hover:text-blue-600 transition-colors" />
+                        <h3 className="font-semibold text-sm sm:text-lg">{position.title}</h3>
+                        <CardDescription className="flex items-center gap-2 mt-1">
+                          <Award className="h-4 w-4" />
+                          {positionCandidates.length} candidate{positionCandidates.length !== 1 ? 's' : ''}
+                        </CardDescription>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </motion.div>
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogContent className="w-[95vw] sm:w-full max-w-[425px] mx-auto">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Candidate</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this candidate? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                  <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => candidateToDelete && handleDeleteCandidate(candidateToDelete)}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-full mx-auto max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Candidate</DialogTitle>
+                  <DialogDescription>
+                    Update the details of the candidate below.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <Input
+                    placeholder="Name"
+                    value={candidateToEdit?.name || ""}
+                    onChange={(e) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, name: e.target.value }));
+                      }
+                    }}
+                  />
+                  
+                  <Select
+                    value={candidateToEdit?.position_id || ""}
+                    onValueChange={(value) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, position_id: value }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Position" />
+                    </SelectTrigger>
+                    <SelectContent className="h-48 overflow-y-auto">
+                      {STATIC_POSITIONS.map((position) => (
+                        <SelectItem key={position.id} value={position.id}>
+                          {position.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    placeholder="Image URL"
+                    value={candidateToEdit?.image || ""}
+                    onChange={(e) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, image: e.target.value }));
+                      }
+                    }}
+                  />
+
+                  <Select
+                    value={candidateToEdit?.year || ""}
+                    onValueChange={(value) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, year: value }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent className="h-48 overflow-y-auto">
+                      <SelectItem value="1st">1st Year</SelectItem>
+                      <SelectItem value="2nd">2nd Year</SelectItem>
+                      <SelectItem value="3rd">3rd Year</SelectItem>
+                      <SelectItem value="4th">4th Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={candidateToEdit?.department || ""}
+                    onValueChange={(value) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, department: value }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent className="h-48 overflow-y-auto">
+                      <SelectItem value="Computer Science">Computer Science</SelectItem>
+                      <SelectItem value="E & TC">E & TC</SelectItem>
+                      <SelectItem value="Electrical">Electrical</SelectItem>
+                      <SelectItem value="Civil">Civil</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    placeholder="Manifesto"
+                    value={candidateToEdit?.manifesto || ""}
+                    onChange={(e) => {
+                      if (candidateToEdit) {
+                        setCandidateToEdit(prev => ({ ...prev!, manifesto: e.target.value }));
+                      }
+                    }}
+                  />
+
+                  <Button onClick={handleUpdateCandidate}>Update Candidate</Button>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </AdminProtected>
   )
 }
 export default AdminCandidatesPage

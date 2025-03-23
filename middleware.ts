@@ -1,27 +1,33 @@
+// middleware.ts
 import { authMiddleware } from "@clerk/nextjs";
- 
-export default authMiddleware({
-  publicRoutes: ["/", "/candidates"],
-  afterAuth(auth, req) {
-    // Debug logs
-    console.log("Auth Debug:", {
-      userId: auth.userId,
-      isAuthenticated: !!auth.userId,
-      privateMetadata: auth.user?.privateMetadata,
-      publicMetadata: auth.user?.publicMetadata,
-      path: req.nextUrl.pathname
-    })
+import { NextResponse } from "next/server";
 
-    // Only block if explicitly not admin
+export default authMiddleware({
+  publicRoutes: ["/", "/candidates", "/vote"],
+  ignoredRoutes: ["/_next/static(.*)", "/_next/image(.*)", "/favicon.ico"],
+
+  async afterAuth(auth, req) {
+    const { userId, sessionClaims } = auth;
+  
+    // Log full auth object for debugging
+    console.log("Auth Object:", auth);
+  
     if (req.nextUrl.pathname.startsWith("/admin")) {
-      if (!auth.userId) {
-        console.log("No user ID - redirecting")
-        return Response.redirect(new URL("/sign-in", req.url))
+      if (!userId) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+  
+      // Debugging: Check if role is present
+      console.log("User Role:", sessionClaims?.metadata?.role);
+  
+      if (sessionClaims?.metadata?.role !== "admin") {
+        console.error("User is not an admin:", userId);
+        return NextResponse.redirect(new URL("/", req.url));
       }
     }
   }
 });
- 
+
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/trpc).*)"],
 };
