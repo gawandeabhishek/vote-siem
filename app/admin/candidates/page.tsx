@@ -109,30 +109,54 @@ const AdminCandidatesPage = () => {
   }, [user])
 
   const fetchCandidates = async () => {
-    setLoading(true)
-    const supabase = await getSupabase()
-    const { data, error } = await supabase
-      .from('candidates')
-      .select(`
-        *,
-        position:positions(title),
-        votes(id)
-      `)
-      .order('name')
+    try {
+      const supabase = await getSupabase()
+      
+      // First, check positions table
+      const { data: positions } = await supabase
+        .from('positions')
+        .select('*')
 
-    if (error) {
-      console.error('Error fetching candidates:', error)
-      toast.error("Failed to fetch candidates")
-    } else {
-      // Calculate vote count and handle missing positions
-      const candidatesWithVotes = data?.map(candidate => ({
-        ...candidate,
-        position: candidate.position || { title: 'Unassigned' }, // Provide fallback
-        vote_count: candidate.votes?.length || 0
-      })) || []
-      setCandidates(candidatesWithVotes)
+      console.log('All positions in database:', positions)
+
+      // Get candidates
+      const { data: candidates } = await supabase
+        .from('candidates')
+        .select(`*, votes(id)`)
+
+      console.log('All candidates:', candidates)
+
+      // Check if STATIC_POSITIONS match database
+      console.log('STATIC_POSITIONS:', STATIC_POSITIONS)
+
+      const candidatesWithPositions = candidates?.map(candidate => {
+        // Try both dynamic and static positions
+        const dynamicPosition = positions?.find(p => p.id === candidate.position_id)
+        const staticPosition = STATIC_POSITIONS.find(p => p.id === candidate.position_id)
+        
+        console.log('Position matching:', {
+          candidateId: candidate.id,
+          positionId: candidate.position_id,
+          dynamicPositionFound: !!dynamicPosition,
+          staticPositionFound: !!staticPosition
+        })
+
+        return {
+          ...candidate,
+          position: {
+            title: dynamicPosition?.title || staticPosition?.title || 'Position not found',
+          },
+          vote_count: candidate.votes?.length || 0
+        }
+      })
+
+      setCandidates(candidatesWithPositions || [])
+
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const fetchPositions = async () => {
@@ -737,5 +761,4 @@ const AdminCandidatesPage = () => {
     </main>
   )
 }
-
 export default AdminCandidatesPage
