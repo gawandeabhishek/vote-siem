@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -64,7 +64,7 @@ interface Candidate {
   year: string
   manifesto: string
   achievements: string[]
-  position: {
+  position?: {
     title: string
   }
   votes: { id: string }[]
@@ -124,9 +124,10 @@ const AdminCandidatesPage = () => {
       console.error('Error fetching candidates:', error)
       toast.error("Failed to fetch candidates")
     } else {
-      // Calculate vote count for each candidate
+      // Calculate vote count and handle missing positions
       const candidatesWithVotes = data?.map(candidate => ({
         ...candidate,
+        position: candidate.position || { title: 'Unassigned' }, // Provide fallback
         vote_count: candidate.votes?.length || 0
       })) || []
       setCandidates(candidatesWithVotes)
@@ -535,10 +536,12 @@ const AdminCandidatesPage = () => {
                             <TableCell>
                               <div className="font-medium">{candidate.name}</div>
                               <div className="text-sm text-muted-foreground sm:hidden">
-                                {candidate.position.title}
+                                {candidate.position?.title || 'Unassigned'}
                               </div>
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell">{candidate.position.title}</TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              {candidate.position?.title || 'Unassigned'}
+                            </TableCell>
                             <TableCell className="text-center">
                               <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
                                 {candidate.vote_count}
@@ -577,7 +580,7 @@ const AdminCandidatesPage = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {positions.map((position, index) => {
                 const Icon = STATIC_POSITIONS[index].icon
-                const positionCandidates = candidates.filter(c => c.position.title === position.title)
+                const positionCandidates = candidates.filter(c => c.position?.title === position.title)
                 const totalVotes = positionCandidates.reduce((sum, c) => sum + c.vote_count, 0)
                 
                 return (
@@ -591,14 +594,13 @@ const AdminCandidatesPage = () => {
                     <div className="h-full p-4 sm:p-6 rounded-lg border bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all hover:scale-105">
                       <Icon className="h-6 w-6 sm:h-8 sm:w-8 mb-2 sm:mb-3 text-primary group-hover:text-blue-600 transition-colors" />
                       <h3 className="font-semibold text-sm sm:text-lg">{position.title}</h3>
-                      <div className="space-y-1">
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          {positionCandidates.length} candidate{positionCandidates.length !== 1 ? 's' : ''}
-                        </p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
-                        </p>
-                      </div>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <Award className="h-4 w-4" />
+                        {positionCandidates.length} candidate{positionCandidates.length !== 1 ? 's' : ''}
+                      </CardDescription>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                      </p>
                     </div>
                   </motion.div>
                 )

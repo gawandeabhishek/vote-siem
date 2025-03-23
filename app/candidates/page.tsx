@@ -14,17 +14,25 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 interface Candidate {
   id: string
   name: string
-  image: string
-  department: string
+  position_id: string
+  image: string | null
   year: string
+  department: string
   manifesto: string
   achievements: string[]
   position: {
     title: string
   }
-  votes: { count: number }[]
   vote_count: number
 }
+
+const STATIC_POSITIONS = [
+  { id: "e4194474-3fd3-42af-b642-9e6aa0740627", title: "President" },
+  { id: "c84c84ae-177e-4509-a654-1d78e643c9fd", title: "Vice President" },
+  { id: "a1234567-3fd3-42af-b642-9e6aa0740627", title: "Secretary" },
+  { id: "b1234567-3fd3-42af-b642-9e6aa0740627", title: "Treasurer" },
+  { id: "d1234567-3fd3-42af-b642-9e6aa0740627", title: "Cultural Secretary" }
+]
 
 export default function CandidatesPage() {
   const { user } = useUser()
@@ -40,25 +48,48 @@ export default function CandidatesPage() {
   const fetchCandidates = async () => {
     try {
       const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('candidates')
-        .select(`
-          *,
-          position:positions(title),
-          votes(count)
-        `)
-        .order('name')
+      
+      // First, check positions table
+      const { data: positions } = await supabase
+        .from('positions')
+        .select('*')
 
-      if (error) throw error
-      
-      const candidatesWithVotes = data?.map(candidate => ({
-        ...candidate,
-        vote_count: candidate.votes?.length || 0
-      })) || []
-      
-      setCandidates(candidatesWithVotes)
+      console.log('All positions in database:', positions)
+
+      // Get candidates
+      const { data: candidates } = await supabase
+        .from('candidates')
+        .select('*')
+
+      console.log('All candidates:', candidates)
+
+      // Check if STATIC_POSITIONS match database
+      console.log('STATIC_POSITIONS:', STATIC_POSITIONS)
+
+      const candidatesWithPositions = candidates?.map(candidate => {
+        // Try both dynamic and static positions
+        const dynamicPosition = positions?.find(p => p.id === candidate.position_id)
+        const staticPosition = STATIC_POSITIONS.find(p => p.id === candidate.position_id)
+        
+        console.log('Position matching:', {
+          candidateId: candidate.id,
+          positionId: candidate.position_id,
+          dynamicPositionFound: !!dynamicPosition,
+          staticPositionFound: !!staticPosition
+        })
+
+        return {
+          ...candidate,
+          position: {
+            title: dynamicPosition?.title || staticPosition?.title || 'Position not found'
+          }
+        }
+      })
+
+      setCandidates(candidatesWithPositions || [])
+
     } catch (error) {
-      console.error('Error fetching candidates:', error)
+      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
