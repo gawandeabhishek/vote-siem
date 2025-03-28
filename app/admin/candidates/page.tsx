@@ -110,7 +110,7 @@ const AdminCandidatesPage = () => {
     }
     fetchCandidates()
     fetchPositions()
-  }, [user])
+  }, [user]) // Add the missing dependencies
 
   const fetchCandidates = async () => {
     setLoading(true)

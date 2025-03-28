@@ -25,6 +25,16 @@ export default authMiddleware({
         return NextResponse.redirect(new URL("/", req.url));
       }
     }
+
+    // Results page access control
+    if (req.nextUrl.pathname === "/results") {
+      const resultsAvailable = process.env.NEXT_PUBLIC_RESULTS_AVAILABLE === "yes";
+      
+      if (!resultsAvailable) {
+        console.log("Results page access denied - not available yet");
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    }
   }
 });
 
