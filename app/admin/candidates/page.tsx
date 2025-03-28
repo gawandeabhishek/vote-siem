@@ -78,7 +78,10 @@ const STATIC_POSITIONS = [
   { id: "a1234567-3fd3-42af-b642-9e6aa0740627", title: "Secretary", icon: Award },
   { id: "b1234567-3fd3-42af-b642-9e6aa0740627", title: "Treasurer", icon: Award },
   { id: "d1234567-3fd3-42af-b642-9e6aa0740627", title: "Cultural Secretary", icon: Award }
-]
+].map(pos => ({
+  ...pos,
+  title: pos.title || '' // Ensure title is never undefined
+}))
 
 const AdminCandidatesPage = () => {
   const { user } = useUser()
@@ -110,65 +113,79 @@ const AdminCandidatesPage = () => {
   }, [user])
 
   const fetchCandidates = async () => {
+    setLoading(true)
     try {
       const supabase = await getSupabase()
       
-      // First, check positions table
-      const { data: positions } = await supabase
-        .from('positions')
-        .select('*')
-
-      console.log('All positions in database:', positions)
-
-      // Get candidates
-      const { data: candidates } = await supabase
+      // Get candidates with their votes
+      const { data: candidates, error: candidatesError } = await supabase
         .from('candidates')
         .select(`*, votes(id)`)
 
-      console.log('All candidates:', candidates)
-
-      // Check if STATIC_POSITIONS match database
-      console.log('STATIC_POSITIONS:', STATIC_POSITIONS)
+      if (candidatesError) throw candidatesError
 
       const candidatesWithPositions = candidates?.map(candidate => {
-        // Try both dynamic and static positions
-        const dynamicPosition = positions?.find(p => p.id === candidate.position_id)
-        const staticPosition = STATIC_POSITIONS.find(p => p.id === candidate.position_id)
-        
-        console.log('Position matching:', {
-          candidateId: candidate.id,
-          positionId: candidate.position_id,
-          dynamicPositionFound: !!dynamicPosition,
-          staticPositionFound: !!staticPosition
-        })
+        try {
+          // Try both dynamic and static positions
+          const dynamicPosition = positions?.find(p => p.id === candidate.position_id)
+          const staticPosition = STATIC_POSITIONS.find(p => p.id === candidate.position_id)
+          
+          // Safely get position title
+          const positionTitle = dynamicPosition?.title || 
+                              staticPosition?.title || 
+                              'Position not found'
 
-        return {
-          ...candidate,
-          position: {
-            title: dynamicPosition?.title || staticPosition?.title || 'Position not found',
-          },
-          vote_count: candidate.votes?.length || 0
+          // Ensure positionTitle is a string
+          const safeTitle = typeof positionTitle === 'string' ? positionTitle : String(positionTitle)
+
+          return {
+            ...candidate,
+            position: {
+              title: safeTitle,
+            },
+            vote_count: candidate.votes?.length || 0
+          }
+        } catch (error) {
+          console.error('Error processing candidate:', candidate.id, error)
+          return {
+            ...candidate,
+            position: {
+              title: 'Error loading position',
+            },
+            vote_count: candidate.votes?.length || 0
+          }
         }
       })
 
       setCandidates(candidatesWithPositions || [])
 
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching candidates:', error)
+      toast.error('Failed to load candidates')
+      setCandidates([])
     } finally {
       setLoading(false)
     }
   }
 
   const fetchPositions = async () => {
-    const supabase = await getSupabase()
-    const { data, error } = await supabase.from('positions').select('*')
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase.from('positions').select('*')
 
-    if (error) {
+      if (error) throw error
+
+      // Ensure all positions have titles
+      const safePositions = (data || []).map(pos => ({
+        ...pos,
+        title: pos.title || ''
+      }))
+
+      setPositions(safePositions)
+    } catch (error) {
       console.error("Error fetching positions:", error)
       toast.error("Failed to fetch positions")
-    } else {
-      setPositions(data || [])
+      setPositions(STATIC_POSITIONS) // Fallback to static positions
     }
   }
 
@@ -177,94 +194,113 @@ const AdminCandidatesPage = () => {
       setNewCandidate(prev => ({
         ...prev,
         achievements: [...prev.achievements, ""]
-      }));
+      }))
     }
-  };
+  }
 
   const handleAchievementChange = (index: number, value: string) => {
-    const updatedAchievements = [...newCandidate.achievements];
-    updatedAchievements[index] = value;
+    const updatedAchievements = [...newCandidate.achievements]
+    updatedAchievements[index] = value
     setNewCandidate(prev => ({
       ...prev,
       achievements: updatedAchievements
-    }));
-  };
+    }))
+  }
 
   const handleRemoveAchievement = (index: number) => {
-    const updatedAchievements = newCandidate.achievements.filter((_, i) => i !== index);
+    const updatedAchievements = newCandidate.achievements.filter((_, i) => i !== index)
     setNewCandidate(prev => ({
       ...prev,
       achievements: updatedAchievements
-    }));
-  };
+    }))
+  }
 
   const handleAddCandidate = async () => {
-    const supabase = await getSupabase();
+    try {
+      const supabase = await getSupabase()
 
-    if (!user) {
-      toast.error("User is not authenticated.");
-      return;
-    }
+      if (!user) {
+        toast.error("User is not authenticated.")
+        return
+      }
 
-    const positionExists = STATIC_POSITIONS.some(position => position.id === newCandidate.position_id);
+      // Validate inputs
+      if (!newCandidate.name.trim()) {
+        toast.error("Please enter a valid name.")
+        return
+      }
 
-    if (!positionExists) {
-      toast.error("Position ID does not exist.");
-      return;
-    }
+      const positionExists = STATIC_POSITIONS.some(position => position.id === newCandidate.position_id)
+      if (!positionExists) {
+        toast.error("Please select a valid position.")
+        return
+      }
 
-    const validYears = ["1st", "2nd", "3rd", "4th"];
-    if (!validYears.includes(newCandidate.year)) {
-      toast.error("Please select a valid year (1st, 2nd, 3rd, or 4th).");
-      return;
-    }
+      const validYears = ["1st", "2nd", "3rd", "4th"]
+      if (!validYears.includes(newCandidate.year)) {
+        toast.error("Please select a valid year.")
+        return
+      }
 
-    const validDepartments = ["Computer Science", "E & TC", "Electrical", "Civil"];
-    if (!validDepartments.includes(newCandidate.department)) {
-      toast.error("Please select a valid department.");
-      return;
-    }
+      const validDepartments = ["Computer Science", "E & TC", "Electrical", "Civil"]
+      if (!validDepartments.includes(newCandidate.department)) {
+        toast.error("Please select a valid department.")
+        return
+      }
 
-    const { data, error } = await supabase
-      .from('candidates')
-      .insert([{ 
-        name: newCandidate.name, 
-        position_id: newCandidate.position_id, 
-        image: newCandidate.image || null, 
-        user_id: user.id,
-        year: newCandidate.year,
-        department: newCandidate.department,
-        manifesto: newCandidate.manifesto,
-        achievements: newCandidate.achievements.filter(achievement => achievement.trim() !== "")
-      }])
-      .select()
-      .single();
+      const { data, error } = await supabase
+        .from('candidates')
+        .insert([{ 
+          name: newCandidate.name.trim(), 
+          position_id: newCandidate.position_id, 
+          image: newCandidate.image.trim() || null, 
+          user_id: user.id,
+          year: newCandidate.year,
+          department: newCandidate.department,
+          manifesto: newCandidate.manifesto.trim(),
+          achievements: newCandidate.achievements.filter(a => a.trim() !== "")
+        }])
+        .select()
+        .single()
 
-    if (error) {
-      console.error("Failed to add candidate:", error);
-      toast.error("Failed to add candidate: " + error.message);
-    } else {
-      toast.success("Candidate added successfully!");
-      const newCandidateData: Candidate = {
+      if (error) throw error
+
+      toast.success("Candidate added successfully!")
+      
+      // Add the new candidate to state
+      const addedCandidate: Candidate = {
         id: data.id,
         name: data.name,
         position_id: newCandidate.position_id,
-        image: data.image || null,
+        image: data.image,
         department: newCandidate.department,
         year: newCandidate.year,
         manifesto: newCandidate.manifesto,
-        achievements: newCandidate.achievements.filter(achievement => achievement.trim() !== ""),
+        achievements: newCandidate.achievements.filter(a => a.trim() !== ""),
         position: {
-          title: STATIC_POSITIONS.find(pos => pos.id === newCandidate.position_id)?.title || "",
+          title: STATIC_POSITIONS.find(p => p.id === newCandidate.position_id)?.title || 'Position'
         },
         votes: [],
         vote_count: 0
-      };
-      setCandidates([...candidates, newCandidateData]);
-      setNewCandidate({ name: "", position_id: "", image: "", year: "", department: "", manifesto: "", achievements: [] });
-      setAddDialogOpen(false);
+      }
+
+      setCandidates([...candidates, addedCandidate])
+      setNewCandidate({ 
+        name: "", 
+        position_id: "", 
+        image: "", 
+        year: "", 
+        department: "", 
+        manifesto: "", 
+        achievements: [] 
+      })
+      setAddDialogOpen(false)
+
+    } catch (error: any) {
+      console.error("Failed to add candidate:", error)
+      toast.error("Failed to add candidate: " + (error.message || "Unknown error"))
     }
-  };
+  }
 
   const handleDeleteCandidate = async (id: string) => {
     setLoading(true)
@@ -278,49 +314,69 @@ const AdminCandidatesPage = () => {
       if (error) throw error
 
       toast.success("Candidate deleted successfully")
-      setDeleteDialogOpen(false)
-      setCandidateToDelete(null)
-      fetchCandidates()
+      setCandidates(candidates.filter(c => c.id !== id))
     } catch (error: any) {
       console.error("Error deleting candidate:", error)
-      toast.error("Failed to delete candidate: " + error.message)
+      toast.error("Failed to delete candidate: " + (error.message || "Unknown error"))
+    } finally {
+      setDeleteDialogOpen(false)
+      setCandidateToDelete(null)
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleEditCandidate = (candidate: Candidate) => {
-    setCandidateToEdit(candidate);
-    setEditDialogOpen(true);
-  };
+    setCandidateToEdit({
+      ...candidate,
+      achievements: [...candidate.achievements] // Ensure we get a fresh copy
+    })
+    setEditDialogOpen(true)
+  }
 
   const handleUpdateCandidate = async () => {
-    if (!candidateToEdit) return;
+    if (!candidateToEdit) return
 
-    const supabase = await getSupabase();
-    const { error } = await supabase
-      .from('candidates')
-      .update({
-        name: candidateToEdit.name,
-        position_id: candidateToEdit.position_id,
-        image: candidateToEdit.image,
-        year: candidateToEdit.year,
-        department: candidateToEdit.department,
-        manifesto: candidateToEdit.manifesto,
-        achievements: candidateToEdit.achievements,
-      })
-      .eq('id', candidateToEdit.id);
+    setLoading(true)
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('candidates')
+        .update({
+          name: candidateToEdit.name.trim(),
+          position_id: candidateToEdit.position_id,
+          image: candidateToEdit.image?.trim() || null,
+          year: candidateToEdit.year,
+          department: candidateToEdit.department,
+          manifesto: candidateToEdit.manifesto.trim(),
+          achievements: candidateToEdit.achievements.filter(a => a.trim() !== "")
+        })
+        .eq('id', candidateToEdit.id)
 
-    if (error) {
-      console.error("Failed to update candidate:", error);
-      toast.error("Failed to update candidate: " + error.message);
-    } else {
-      toast.success("Candidate updated successfully!");
-      // Update the local state to reflect the changes
-      setCandidates(prev => prev.map(c => (c.id === candidateToEdit.id ? candidateToEdit : c)));
-      setEditDialogOpen(false);
-      setCandidateToEdit(null);
+      if (error) throw error
+
+      toast.success("Candidate updated successfully!")
+      
+      // Update the local state
+      setCandidates(candidates.map(c => 
+        c.id === candidateToEdit.id ? {
+          ...candidateToEdit,
+          position: {
+            title: STATIC_POSITIONS.find(p => p.id === candidateToEdit.position_id)?.title || 
+                  positions.find(p => p.id === candidateToEdit.position_id)?.title ||
+                  'Position'
+          }
+        } : c
+      ))
+
+      setEditDialogOpen(false)
+      setCandidateToEdit(null)
+    } catch (error: any) {
+      console.error("Failed to update candidate:", error)
+      toast.error("Failed to update candidate: " + (error.message || "Unknown error"))
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -487,13 +543,20 @@ const AdminCandidatesPage = () => {
                               value={achievement}
                               onChange={(e) => handleAchievementChange(index, e.target.value)}
                             />
-                            <Button variant="destructive" onClick={() => handleRemoveAchievement(index)}>Remove</Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleRemoveAchievement(index)}
+                            >
+                              Remove
+                            </Button>
                           </div>
                         ))}
                         <div className="mt-2">
                           <Button 
                             onClick={handleAddAchievement} 
                             className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={newCandidate.achievements.length >= 5}
                           >
                             Add Achievement
                           </Button>
@@ -501,12 +564,21 @@ const AdminCandidatesPage = () => {
                       </div>
                     </div>
                     <DialogFooter className="flex-col sm:flex-row gap-2">
-                      <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="w-full sm:w-auto">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setAddDialogOpen(false)} 
+                        className="w-full sm:w-auto"
+                      >
                         Cancel
                       </Button>
                       <Button 
                         onClick={handleAddCandidate}
-                        disabled={!newCandidate.name || !newCandidate.position_id || !newCandidate.year || !newCandidate.department}
+                        disabled={
+                          !newCandidate.name.trim() || 
+                          !newCandidate.position_id || 
+                          !newCandidate.year || 
+                          !newCandidate.department
+                        }
                         className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-primary hover:from-blue-700 hover:to-primary/90"
                       >
                         Add Candidate
@@ -534,68 +606,84 @@ const AdminCandidatesPage = () => {
                       </TableHeader>
                       <TableBody>
                         <AnimatePresence>
-                          {candidates.map((candidate, index) => (
-                            <motion.tr
-                              key={candidate.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -20 }}
-                              transition={{ duration: 0.2, delay: index * 0.1 }}
-                              className="group hover:bg-primary/5"
-                            >
-                              <TableCell>
-                                <Avatar className="h-16 w-16 relative">
-                                  <AvatarImage 
-                                    src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
-                                    alt={candidate.name}
-                                    className="object-cover"
-                                    style={{ 
-                                      width: '100%', 
-                                      height: '100%', 
-                                      position: 'absolute',
-                                      inset: 0
-                                    }}
-                                  />
-                                  <AvatarFallback>{candidate.name.split(' ').map(n => n[0].toUpperCase()).join('')}</AvatarFallback>
-                                </Avatar>
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">{candidate.name}</div>
-                                <div className="text-sm text-muted-foreground sm:hidden">
+                          {candidates.length > 0 ? (
+                            candidates.map((candidate, index) => (
+                              <motion.tr
+                                key={candidate.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ duration: 0.2, delay: index * 0.1 }}
+                                className="group hover:bg-primary/5"
+                              >
+                                <TableCell>
+                                  <Avatar className="h-16 w-16 relative">
+                                    <AvatarImage 
+                                      src={candidate.image || "https://i.pinimg.com/736x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg"} 
+                                      alt={candidate.name}
+                                      className="object-cover"
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        position: 'absolute',
+                                        inset: 0
+                                      }}
+                                    />
+                                    <AvatarFallback>
+                                      {candidate.name 
+                                        ? candidate.name.split(' ').map(n => n[0]?.toUpperCase() || '').join('') 
+                                        : '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{candidate.name}</div>
+                                  <div className="text-sm text-muted-foreground sm:hidden">
+                                    {candidate.position?.title || 'Unassigned'}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell">
                                   {candidate.position?.title || 'Unassigned'}
-                                </div>
-                              </TableCell>
-                              <TableCell className="hidden sm:table-cell">
-                                {candidate.position?.title || 'Unassigned'}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
-                                  {candidate.vote_count}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
-                                  onClick={() => {
-                                    setCandidateToDelete(candidate.id)
-                                    setDeleteDialogOpen(true)
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
-                                  onClick={() => handleEditCandidate(candidate)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <span className="inline-flex items-center justify-center px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r from-blue-600/10 to-primary/10 text-primary text-sm font-medium group-hover:from-blue-600/20 group-hover:to-primary/20 transition-all">
+                                    {candidate.vote_count}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => {
+                                      setCandidateToDelete(candidate.id)
+                                      setDeleteDialogOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="opacity-70 sm:opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
+                                    onClick={() => handleEditCandidate(candidate)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </motion.tr>
+                            ))
+                          ) : (
+                            <motion.tr
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="hover:bg-primary/5"
+                            >
+                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                No candidates found
                               </TableCell>
                             </motion.tr>
-                          ))}
+                          )}
                         </AnimatePresence>
                       </TableBody>
                     </Table>
@@ -604,9 +692,9 @@ const AdminCandidatesPage = () => {
               </Card>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                {positions.map((position, index) => {
+                {STATIC_POSITIONS.map((position, index) => {
                   const Icon = STATIC_POSITIONS[index].icon
-                  const positionCandidates = candidates.filter(c => c.position?.title === position.title)
+                  const positionCandidates = candidates.filter(c => c.position_id === position.id)
                   const totalVotes = positionCandidates.reduce((sum, c) => sum + c.vote_count, 0)
                   
                   return (
@@ -662,100 +750,174 @@ const AdminCandidatesPage = () => {
                     Update the details of the candidate below.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <Input
-                    placeholder="Name"
-                    value={candidateToEdit?.name || ""}
-                    onChange={(e) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, name: e.target.value }));
-                      }
-                    }}
-                  />
-                  
-                  <Select
-                    value={candidateToEdit?.position_id || ""}
-                    onValueChange={(value) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, position_id: value }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Position" />
-                    </SelectTrigger>
-                    <SelectContent className="h-48 overflow-y-auto">
-                      {STATIC_POSITIONS.map((position) => (
-                        <SelectItem key={position.id} value={position.id}>
-                          {position.title}
-                        </SelectItem>
+                {candidateToEdit && (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Name</label>
+                      <Input
+                        placeholder="Name"
+                        value={candidateToEdit.name}
+                        onChange={(e) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          name: e.target.value 
+                        }))}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Position</label>
+                      <Select
+                        value={candidateToEdit.position_id}
+                        onValueChange={(value) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          position_id: value 
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Position" />
+                        </SelectTrigger>
+                        <SelectContent className="h-48 overflow-y-auto">
+                          {STATIC_POSITIONS.map((position) => (
+                            <SelectItem key={position.id} value={position.id}>
+                              {position.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Image URL</label>
+                      <Input
+                        placeholder="Image URL"
+                        value={candidateToEdit.image || ""}
+                        onChange={(e) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          image: e.target.value 
+                        }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Year</label>
+                      <Select
+                        value={candidateToEdit.year}
+                        onValueChange={(value) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          year: value 
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Year" />
+                        </SelectTrigger>
+                        <SelectContent className="h-48 overflow-y-auto">
+                          <SelectItem value="1st">1st Year</SelectItem>
+                          <SelectItem value="2nd">2nd Year</SelectItem>
+                          <SelectItem value="3rd">3rd Year</SelectItem>
+                          <SelectItem value="4th">4th Year</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Department</label>
+                      <Select
+                        value={candidateToEdit.department}
+                        onValueChange={(value) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          department: value 
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Department" />
+                        </SelectTrigger>
+                        <SelectContent className="h-48 overflow-y-auto">
+                          <SelectItem value="Computer Science">Computer Science</SelectItem>
+                          <SelectItem value="E & TC">E & TC</SelectItem>
+                          <SelectItem value="Electrical">Electrical</SelectItem>
+                          <SelectItem value="Civil">Civil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Manifesto</label>
+                      <Input
+                        placeholder="Manifesto"
+                        value={candidateToEdit.manifesto}
+                        onChange={(e) => setCandidateToEdit(prev => ({ 
+                          ...prev!, 
+                          manifesto: e.target.value 
+                        }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Achievements</label>
+                      {candidateToEdit.achievements.map((achievement, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Input
+                            placeholder={`Achievement ${index + 1}`}
+                            value={achievement}
+                            onChange={(e) => {
+                              const updated = [...candidateToEdit.achievements]
+                              updated[index] = e.target.value
+                              setCandidateToEdit(prev => ({
+                                ...prev!,
+                                achievements: updated
+                              }))
+                            }}
+                          />
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => {
+                              const updated = candidateToEdit.achievements.filter((_, i) => i !== index)
+                              setCandidateToEdit(prev => ({
+                                ...prev!,
+                                achievements: updated
+                              }))
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                      <Button 
+                        onClick={() => {
+                          setCandidateToEdit(prev => ({
+                            ...prev!,
+                            achievements: [...prev!.achievements, ""]
+                          }))
+                        }}
+                        className="mt-2"
+                        disabled={candidateToEdit.achievements.length >= 5}
+                      >
+                        Add Achievement
+                      </Button>
+                    </div>
 
-                  <Input
-                    placeholder="Image URL"
-                    value={candidateToEdit?.image || ""}
-                    onChange={(e) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, image: e.target.value }));
-                      }
-                    }}
-                  />
-
-                  <Select
-                    value={candidateToEdit?.year || ""}
-                    onValueChange={(value) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, year: value }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Year" />
-                    </SelectTrigger>
-                    <SelectContent className="h-48 overflow-y-auto">
-                      <SelectItem value="1st">1st Year</SelectItem>
-                      <SelectItem value="2nd">2nd Year</SelectItem>
-                      <SelectItem value="3rd">3rd Year</SelectItem>
-                      <SelectItem value="4th">4th Year</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={candidateToEdit?.department || ""}
-                    onValueChange={(value) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, department: value }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                    <SelectContent className="h-48 overflow-y-auto">
-                      <SelectItem value="Computer Science">Computer Science</SelectItem>
-                      <SelectItem value="E & TC">E & TC</SelectItem>
-                      <SelectItem value="Electrical">Electrical</SelectItem>
-                      <SelectItem value="Civil">Civil</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    placeholder="Manifesto"
-                    value={candidateToEdit?.manifesto || ""}
-                    onChange={(e) => {
-                      if (candidateToEdit) {
-                        setCandidateToEdit(prev => ({ ...prev!, manifesto: e.target.value }));
-                      }
-                    }}
-                  />
-
-                  <Button onClick={handleUpdateCandidate}>Update Candidate</Button>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-                </DialogFooter>
+                    <DialogFooter>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setEditDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleUpdateCandidate}
+                        disabled={
+                          !candidateToEdit.name.trim() || 
+                          !candidateToEdit.position_id || 
+                          !candidateToEdit.year || 
+                          !candidateToEdit.department
+                        }
+                      >
+                        Update Candidate
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </div>
@@ -764,4 +926,5 @@ const AdminCandidatesPage = () => {
     </AdminProtected>
   )
 }
+
 export default AdminCandidatesPage
