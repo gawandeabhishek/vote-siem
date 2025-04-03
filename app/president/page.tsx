@@ -109,7 +109,7 @@ const PresidentWinnerPage = () => {
 
   return (
     <main>
-      <div className="relative min-h-screen py-12 sm:py-16">
+      <div className="relative min-h-screen py-20 sm:py-16">
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=1920&auto=format&fit=crop"

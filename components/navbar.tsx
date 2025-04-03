@@ -1,7 +1,7 @@
 "use client"
 
 import { UserButton, useUser } from "@clerk/nextjs"
-import { Vote, Shield, Menu, Home, CheckSquare, BarChart, User } from "lucide-react"
+import { Vote, Shield, Menu, Home, CheckSquare, BarChart, User, Trophy } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "./ui/button"
@@ -44,6 +44,13 @@ const Navbar = () => {
       label: "Results",
       icon: <BarChart className="h-4 w-4" />,
       active: pathname === "/results",
+      show: process.env.NEXT_PUBLIC_RESULTS_AVAILABLE === "yes"
+    },
+    {
+      href: "/president",
+      label: "President",
+      icon: <Trophy className="h-4 w-4" />,
+      active: pathname === "/president",
       show: process.env.NEXT_PUBLIC_RESULTS_AVAILABLE === "yes"
     }
   ]
